@@ -1,0 +1,11 @@
+.git
+.gitignore
+.dart_tool
+.idea
+build
+ios
+android/.gradle
+android/local.properties
+linux/flutter/ephemeral
+macos/Flutter/ephemeral
+windows/flutter/ephemeral

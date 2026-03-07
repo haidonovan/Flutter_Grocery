@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: flutter-grocery
+    runtime: docker
+    plan: free
+    autoDeploy: true
