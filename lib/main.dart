@@ -10,7 +10,14 @@ void main() {
 class MyApp extends StatelessWidget {
   MyApp({super.key});
 
-  final Future<GroceryStoreState> _storeFuture = GroceryStoreState.create();
+  static const String _apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:4000',
+  );
+
+  final Future<GroceryStoreState> _storeFuture = GroceryStoreState.create(
+    baseUrl: _apiBaseUrl,
+  );
 
   @override
   Widget build(BuildContext context) {

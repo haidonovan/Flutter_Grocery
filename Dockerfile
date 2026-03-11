@@ -2,6 +2,9 @@ FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
 
+RUN useradd -m flutteruser && chown -R flutteruser:flutteruser /app
+USER flutteruser
+
 COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
 

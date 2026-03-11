@@ -12,7 +12,7 @@ class ProductManagementPage extends StatelessWidget {
   Future<void> _addProduct(BuildContext context) async {
     final data = await Navigator.of(context).push<ProductFormData>(
       MaterialPageRoute<ProductFormData>(
-        builder: (_) => const AddProductPage(),
+        builder: (_) => AddProductPage(onUploadImage: store.uploadImage),
       ),
     );
 
@@ -33,7 +33,10 @@ class ProductManagementPage extends StatelessWidget {
   Future<void> _editProduct(BuildContext context, Product product) async {
     final data = await Navigator.of(context).push<ProductFormData>(
       MaterialPageRoute<ProductFormData>(
-        builder: (_) => AddProductPage(initialProduct: product),
+        builder: (_) => AddProductPage(
+          initialProduct: product,
+          onUploadImage: store.uploadImage,
+        ),
       ),
     );
 

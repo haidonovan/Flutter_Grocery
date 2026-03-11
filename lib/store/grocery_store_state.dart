@@ -1,8 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../api/api_client.dart';
 import '../client/models.dart';
 
 class CartViewItem {
@@ -15,80 +15,59 @@ class CartViewItem {
 }
 
 class PlaceOrderResult {
-  const PlaceOrderResult({required this.success, this.message, this.order});
+  const PlaceOrderResult({required this.success, this.message});
 
   final bool success;
   final String? message;
-  final OrderRecord? order;
+}
+
+class AuthResult {
+  const AuthResult({required this.success, this.message});
+
+  final bool success;
+  final String? message;
 }
 
 class GroceryStoreState extends ChangeNotifier {
-  GroceryStoreState._();
+  GroceryStoreState._(this._apiClient);
 
-  static const String _storageKey = 'grocery_store_state_v1';
+  static const String _tokenKey = 'api_token';
+  static const String _userIdKey = 'api_user_id';
+  static const String _userEmailKey = 'api_user_email';
+  static const String _userRoleKey = 'api_user_role';
 
-  static Future<GroceryStoreState> create() async {
-    final store = GroceryStoreState._();
-    await store._loadState();
+  static Future<GroceryStoreState> create({
+    String baseUrl = 'http://localhost:4000',
+  }) async {
+    final client = ApiClient(baseUrl: baseUrl);
+    final store = GroceryStoreState._(client);
+    await store._restoreSession();
+    await store.refreshAll();
     return store;
   }
 
-  static List<Product> _defaultProducts() {
-    return const [
-      Product(
-        id: 'p1',
-        name: 'Fresh Apples',
-        category: 'Fruits',
-        description: 'Crisp and sweet red apples, sold per kg.',
-        price: 3.25,
-        imageUrl: 'https://picsum.photos/seed/apples/900/500',
-        stock: 40,
-      ),
-      Product(
-        id: 'p2',
-        name: 'Whole Milk',
-        category: 'Dairy',
-        description: '1L whole milk from local farms.',
-        price: 1.99,
-        imageUrl: 'https://picsum.photos/seed/milk/900/500',
-        stock: 30,
-      ),
-      Product(
-        id: 'p3',
-        name: 'Basmati Rice',
-        category: 'Grains',
-        description: 'Premium long-grain basmati rice, 5kg bag.',
-        price: 12.50,
-        imageUrl: 'https://picsum.photos/seed/rice/900/500',
-        stock: 18,
-      ),
-      Product(
-        id: 'p4',
-        name: 'Chicken Breast',
-        category: 'Meat',
-        description: 'Boneless chicken breast, approx. 500g tray.',
-        price: 5.40,
-        imageUrl: 'https://picsum.photos/seed/chicken/900/500',
-        stock: 22,
-      ),
-      Product(
-        id: 'p5',
-        name: 'Orange Juice',
-        category: 'Beverages',
-        description: 'No-added-sugar orange juice, 1L bottle.',
-        price: 2.80,
-        imageUrl: 'https://picsum.photos/seed/orange-juice/900/500',
-        stock: 26,
-      ),
-    ];
-  }
+  final ApiClient _apiClient;
 
   final List<Product> _products = [];
   final List<CartItem> _cart = [];
   final List<OrderRecord> _orders = [];
   final List<RestockRecord> _restockHistory = [];
 
-  int _productSeq = 1;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  String? _token;
+  int? _userId;
+  String? _userEmail;
+  String? _role;
+
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  bool get isAuthenticated => _token != null && _token!.isNotEmpty;
+  bool get isAdmin => _role == 'admin';
+  String get userEmail => _userEmail ?? '';
+  int? get userId => _userId;
 
   List<Product> get allProducts => List.unmodifiable(_products);
 
@@ -163,7 +142,7 @@ class GroceryStoreState extends ChangeNotifier {
         return false;
       }
       _cart.add(CartItem(productId: productId, quantity: quantity));
-      _commitState();
+      notifyListeners();
       return true;
     }
 
@@ -173,7 +152,7 @@ class GroceryStoreState extends ChangeNotifier {
     }
 
     _cart[index].quantity = updatedQuantity;
-    _commitState();
+    notifyListeners();
     return true;
   }
 
@@ -191,453 +170,428 @@ class GroceryStoreState extends ChangeNotifier {
     } else {
       _cart.removeAt(index);
     }
-    _commitState();
+    notifyListeners();
   }
 
   void removeFromCart(String productId) {
     _cart.removeWhere((item) => item.productId == productId);
-    _commitState();
+    notifyListeners();
   }
 
-  List<OrderRecord> ordersForUser(String email) {
-    return _orders
-        .where(
-          (order) => order.customerEmail.toLowerCase() == email.toLowerCase(),
-        )
-        .toList(growable: false);
+  Future<AuthResult> login({
+    required String email,
+    required String password,
+    bool requireAdmin = false,
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiClient.postJson('/api/auth/login', {
+        'email': email,
+        'password': password,
+      });
+
+      final token = response['token'] as String?;
+      final user = response['user'] as Map<String, dynamic>?;
+      if (token == null || user == null) {
+        return const AuthResult(
+          success: false,
+          message: 'Invalid login response.',
+        );
+      }
+
+      final role = user['role']?.toString() ?? 'client';
+      if (requireAdmin && role != 'admin') {
+        return const AuthResult(
+          success: false,
+          message: 'Admin access required.',
+        );
+      }
+
+      await _saveSession(
+        token: token,
+        userId: (user['id'] as num).toInt(),
+        email: user['email']?.toString() ?? email,
+        role: role,
+      );
+
+      await refreshAll();
+      return const AuthResult(success: true);
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } finally {
+      _setLoading(false);
+    }
   }
 
-  PlaceOrderResult placeOrder({
-    required String customerEmail,
+  Future<AuthResult> register({
+    required String email,
+    required String password,
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiClient.postJson('/api/auth/register', {
+        'email': email,
+        'password': password,
+      });
+
+      final token = response['token'] as String?;
+      final user = response['user'] as Map<String, dynamic>?;
+      if (token == null || user == null) {
+        return const AuthResult(
+          success: false,
+          message: 'Invalid register response.',
+        );
+      }
+
+      await _saveSession(
+        token: token,
+        userId: (user['id'] as num).toInt(),
+        email: user['email']?.toString() ?? email,
+        role: user['role']?.toString() ?? 'client',
+      );
+
+      await refreshAll();
+      return const AuthResult(success: true);
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> logout() async {
+    _token = null;
+    _userId = null;
+    _userEmail = null;
+    _role = null;
+    _apiClient.token = null;
+    _cart.clear();
+    _products.clear();
+    _orders.clear();
+    _restockHistory.clear();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userIdKey);
+    await prefs.remove(_userEmailKey);
+    await prefs.remove(_userRoleKey);
+
+    notifyListeners();
+  }
+
+  Future<void> refreshAll() async {
+    if (!isAuthenticated) {
+      await _loadProducts(includeInactive: false);
+      return;
+    }
+
+    await _loadProducts(includeInactive: isAdmin);
+    await _loadOrders();
+    if (isAdmin) {
+      await _loadRestocks();
+    }
+  }
+
+  Future<void> _loadProducts({required bool includeInactive}) async {
+    try {
+      final response = await _apiClient.getJson(
+        '/api/products',
+        query: includeInactive ? {'active': 'false'} : null,
+      );
+      final data = response['data'] as List<dynamic>?;
+      if (data != null) {
+        _products
+          ..clear()
+          ..addAll(data.map(_productFromApi));
+        notifyListeners();
+      }
+    } on ApiException catch (err) {
+      _setError(err.message);
+    } catch (_) {
+      _setError('Unable to reach server.');
+    }
+  }
+
+  Future<void> _loadOrders() async {
+    if (!isAuthenticated) {
+      _orders.clear();
+      return;
+    }
+
+    try {
+      final endpoint = isAdmin ? '/api/orders' : '/api/orders/me';
+      final response = await _apiClient.getJson(endpoint);
+      final data = response['data'] as List<dynamic>?;
+      if (data == null) {
+        return;
+      }
+
+      final orders = data.map(_orderFromApi).toList();
+      for (final order in orders) {
+        final lines = await _loadOrderLines(order.id);
+        order.lines
+          ..clear()
+          ..addAll(lines);
+      }
+
+      _orders
+        ..clear()
+        ..addAll(orders);
+      notifyListeners();
+    } on ApiException catch (err) {
+      _setError(err.message);
+    } catch (_) {
+      _setError('Unable to reach server.');
+    }
+  }
+
+  Future<List<OrderLine>> _loadOrderLines(String orderId) async {
+    try {
+      final response = await _apiClient.getJson('/api/orders/$orderId/lines');
+      final data = response['data'] as List<dynamic>?;
+      if (data == null) {
+        return [];
+      }
+      return data.map((line) {
+        final map = line as Map<String, dynamic>;
+        return OrderLine(
+          productId: map['productId']?.toString() ?? '',
+          productName: map['productName']?.toString() ?? '',
+          quantity: (map['quantity'] as num?)?.toInt() ?? 0,
+          unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _loadRestocks() async {
+    try {
+      final response = await _apiClient.getJson('/api/restocks');
+      final data = response['data'] as List<dynamic>?;
+      if (data == null) {
+        return;
+      }
+      _restockHistory
+        ..clear()
+        ..addAll(data.map(_restockFromApi));
+      notifyListeners();
+    } on ApiException catch (err) {
+      _setError(err.message);
+    } catch (_) {
+      _setError('Unable to reach server.');
+    }
+  }
+
+  Future<PlaceOrderResult> placeOrder({
     required String shippingAddress,
     required String paymentMethod,
-  }) {
+  }) async {
     if (_cart.isEmpty) {
       return const PlaceOrderResult(success: false, message: 'Cart is empty.');
     }
 
-    for (final item in _cart) {
-      final product = getProductById(item.productId);
-      if (product == null ||
-          !product.isActive ||
-          product.stock < item.quantity) {
-        return const PlaceOrderResult(
-          success: false,
-          message: 'Some items are out of stock. Please review your cart.',
-        );
-      }
-    }
-
-    final lines = <OrderLine>[];
-    var total = 0.0;
-
-    for (final item in _cart) {
-      final product = getProductById(item.productId)!;
-      lines.add(
-        OrderLine(
-          productId: product.id,
-          productName: product.name,
-          quantity: item.quantity,
-          unitPrice: product.price,
-        ),
-      );
-      total += product.price * item.quantity;
-
-      final productIndex = _products.indexWhere(
-        (element) => element.id == product.id,
-      );
-      _products[productIndex] = product.copyWith(
-        stock: product.stock - item.quantity,
+    if (!isAuthenticated) {
+      return const PlaceOrderResult(
+        success: false,
+        message: 'You must login to place an order.',
       );
     }
 
-    final order = OrderRecord(
-      id: '#ORD-${DateTime.now().millisecondsSinceEpoch}',
-      customerEmail: customerEmail,
-      createdAt: DateTime.now(),
-      shippingAddress: shippingAddress,
-      paymentMethod: paymentMethod,
-      lines: lines,
-      total: total,
-      status: OrderStatus.pending,
-    );
+    final lines = _cart
+        .map((item) => {'productId': item.productId, 'quantity': item.quantity})
+        .toList(growable: false);
 
-    _orders.insert(0, order);
-    _cart.clear();
-    _commitState();
+    _setLoading(true);
+    try {
+      await _apiClient.postJson('/api/orders', {
+        'shippingAddress': shippingAddress,
+        'paymentMethod': paymentMethod,
+        'lines': lines,
+      });
 
-    return const PlaceOrderResult(
-      success: true,
-      message: 'Order placed successfully.',
-    );
+      _cart.clear();
+      await refreshAll();
+      return const PlaceOrderResult(
+        success: true,
+        message: 'Order placed successfully.',
+      );
+    } on ApiException catch (err) {
+      return PlaceOrderResult(success: false, message: err.message);
+    } finally {
+      _setLoading(false);
+    }
   }
 
-  String addProduct({
+  Future<void> addProduct({
     required String name,
     required String category,
     required String description,
     required double price,
     required int stock,
     required String imageUrl,
-  }) {
-    final id = 'p$_productSeq';
-    _productSeq += 1;
-
-    _products.add(
-      Product(
-        id: id,
-        name: name,
-        category: category,
-        description: description,
-        price: price,
-        stock: stock,
-        imageUrl: imageUrl,
-      ),
-    );
-    _commitState();
-    return id;
+  }) async {
+    await _apiClient.postJson('/api/products', {
+      'name': name,
+      'category': category,
+      'description': description,
+      'price': price,
+      'stock': stock,
+      'imageUrl': imageUrl,
+    });
+    await refreshAll();
   }
 
-  void updateProduct(Product updated) {
-    final index = _products.indexWhere((product) => product.id == updated.id);
-    if (index == -1) {
-      return;
-    }
-    _products[index] = updated;
-
-    final cartIndex = _cart.indexWhere((item) => item.productId == updated.id);
-    if (cartIndex != -1 && _cart[cartIndex].quantity > updated.stock) {
-      _cart[cartIndex].quantity = updated.stock;
-      if (_cart[cartIndex].quantity <= 0 || !updated.isActive) {
-        _cart.removeAt(cartIndex);
-      }
-    }
-
-    _commitState();
+  Future<void> updateProduct(Product updated) async {
+    await _apiClient.putJson('/api/products/${updated.id}', {
+      'name': updated.name,
+      'category': updated.category,
+      'description': updated.description,
+      'price': updated.price,
+      'imageUrl': updated.imageUrl,
+      'stock': updated.stock,
+      'isActive': updated.isActive,
+    });
+    await refreshAll();
   }
 
-  void toggleProductStatus(String productId, bool isActive) {
+  Future<void> toggleProductStatus(String productId, bool isActive) async {
     final product = getProductById(productId);
     if (product == null) {
       return;
     }
-    updateProduct(product.copyWith(isActive: isActive));
+    await updateProduct(product.copyWith(isActive: isActive));
   }
 
-  void deleteProduct(String productId) {
-    _products.removeWhere((product) => product.id == productId);
-    _cart.removeWhere((item) => item.productId == productId);
-    _commitState();
+  Future<void> deleteProduct(String productId) async {
+    await _apiClient.delete('/api/products/$productId');
+    await refreshAll();
   }
 
-  void restockProduct(String productId, int quantityAdded) {
+  Future<void> restockProduct(String productId, int quantityAdded) async {
     if (quantityAdded <= 0) {
       return;
     }
-    final product = getProductById(productId);
-    if (product == null) {
-      return;
-    }
-
-    final updated = product.copyWith(stock: product.stock + quantityAdded);
-    final index = _products.indexWhere((item) => item.id == productId);
-    _products[index] = updated;
-
-    _restockHistory.insert(
-      0,
-      RestockRecord(
-        productId: updated.id,
-        productName: updated.name,
-        quantityAdded: quantityAdded,
-        createdAt: DateTime.now(),
-      ),
-    );
-
-    _commitState();
+    await _apiClient.postJson('/api/products/$productId/restock', {
+      'quantity': quantityAdded,
+    });
+    await refreshAll();
   }
 
-  void updateOrderStatus(String orderId, OrderStatus nextStatus) {
-    final index = _orders.indexWhere((order) => order.id == orderId);
-    if (index == -1) {
-      return;
-    }
-
-    _orders[index] = _orders[index].copyWith(status: nextStatus);
-    _commitState();
+  Future<void> updateOrderStatus(String orderId, OrderStatus nextStatus) async {
+    await _apiClient.patchJson('/api/orders/$orderId/status', {
+      'status': nextStatus.name,
+    });
+    await refreshAll();
   }
 
-  void _commitState() {
-    notifyListeners();
-    _persistState();
-  }
-
-  Future<void> _loadState() async {
-    _products
-      ..clear()
-      ..addAll(_defaultProducts());
-    _cart.clear();
-    _orders.clear();
-    _restockHistory.clear();
-
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
-    if (raw == null || raw.isEmpty) {
-      _deriveProductSeq();
-      return;
-    }
-
+  Future<String?> uploadImage(XFile file) async {
+    _setLoading(true);
     try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) {
-        _deriveProductSeq();
-        return;
+      final response = await _apiClient.uploadImage('/api/uploads', file);
+      final url = response['url']?.toString();
+      if (url == null || url.isEmpty) {
+        return null;
       }
-
-      final products = decoded['products'];
-      if (products is List) {
-        _products
-          ..clear()
-          ..addAll(
-            products.whereType<Map<String, dynamic>>().map(_productFromJson),
-          );
+      if (url.startsWith('http')) {
+        return url;
       }
-
-      final cart = decoded['cart'];
-      if (cart is List) {
-        _cart
-          ..clear()
-          ..addAll(
-            cart.whereType<Map<String, dynamic>>().map(_cartItemFromJson),
-          );
-      }
-
-      final orders = decoded['orders'];
-      if (orders is List) {
-        _orders
-          ..clear()
-          ..addAll(
-            orders.whereType<Map<String, dynamic>>().map(_orderFromJson),
-          );
-      }
-
-      final restocks = decoded['restockHistory'];
-      if (restocks is List) {
-        _restockHistory
-          ..clear()
-          ..addAll(
-            restocks.whereType<Map<String, dynamic>>().map(_restockFromJson),
-          );
-      }
-
-      _deriveProductSeq();
+      return '${_apiClient.baseUrl}$url';
+    } on ApiException catch (err) {
+      _setError(err.message);
+      return null;
     } catch (_) {
-      _products
-        ..clear()
-        ..addAll(_defaultProducts());
-      _cart.clear();
-      _orders.clear();
-      _restockHistory.clear();
-      _deriveProductSeq();
+      _setError('Upload failed.');
+      return null;
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<void> _persistState() async {
-    final payload = <String, dynamic>{
-      'products': _products.map(_productToJson).toList(growable: false),
-      'cart': _cart.map(_cartItemToJson).toList(growable: false),
-      'orders': _orders.map(_orderToJson).toList(growable: false),
-      'restockHistory': _restockHistory
-          .map(_restockToJson)
-          .toList(growable: false),
-    };
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, jsonEncode(payload));
-  }
-
-  void _deriveProductSeq() {
-    var maxSeq = 0;
-    for (final product in _products) {
-      if (product.id.startsWith('p')) {
-        final parsed = int.tryParse(product.id.substring(1));
-        if (parsed != null && parsed > maxSeq) {
-          maxSeq = parsed;
-        }
-      }
-    }
-    _productSeq = maxSeq + 1;
-  }
-
-  Map<String, dynamic> _productToJson(Product product) {
-    return {
-      'id': product.id,
-      'name': product.name,
-      'category': product.category,
-      'description': product.description,
-      'price': product.price,
-      'imageUrl': product.imageUrl,
-      'stock': product.stock,
-      'isActive': product.isActive,
-    };
-  }
-
-  Product _productFromJson(Map<String, dynamic> json) {
+  Product _productFromApi(dynamic raw) {
+    final data = raw as Map<String, dynamic>;
     return Product(
-      id: _readString(json, 'id'),
-      name: _readString(json, 'name'),
-      category: _readString(json, 'category'),
-      description: _readString(json, 'description'),
-      price: _readDouble(json, 'price'),
-      imageUrl: _readString(json, 'imageUrl'),
-      stock: _readInt(json, 'stock'),
-      isActive: _readBool(json, 'isActive', fallback: true),
+      id: data['id']?.toString() ?? '',
+      name: data['name']?.toString() ?? '',
+      category: data['category']?.toString() ?? '',
+      description: data['description']?.toString() ?? '',
+      price: (data['price'] as num?)?.toDouble() ?? 0,
+      imageUrl: data['imageUrl']?.toString() ?? '',
+      stock: (data['stock'] as num?)?.toInt() ?? 0,
+      isActive: data['isActive'] == null ? true : data['isActive'] == true,
     );
   }
 
-  Map<String, dynamic> _cartItemToJson(CartItem item) {
-    return {'productId': item.productId, 'quantity': item.quantity};
-  }
-
-  CartItem _cartItemFromJson(Map<String, dynamic> json) {
-    return CartItem(
-      productId: _readString(json, 'productId'),
-      quantity: _readInt(json, 'quantity', fallback: 1),
-    );
-  }
-
-  Map<String, dynamic> _orderToJson(OrderRecord order) {
-    return {
-      'id': order.id,
-      'customerEmail': order.customerEmail,
-      'createdAt': order.createdAt.toIso8601String(),
-      'shippingAddress': order.shippingAddress,
-      'paymentMethod': order.paymentMethod,
-      'total': order.total,
-      'status': order.status.name,
-      'lines': order.lines
-          .map(
-            (line) => {
-              'productId': line.productId,
-              'productName': line.productName,
-              'quantity': line.quantity,
-              'unitPrice': line.unitPrice,
-            },
-          )
-          .toList(growable: false),
-    };
-  }
-
-  OrderRecord _orderFromJson(Map<String, dynamic> json) {
-    final linesRaw = json['lines'];
-    final lines = <OrderLine>[];
-    if (linesRaw is List) {
-      for (final lineRaw in linesRaw.whereType<Map<String, dynamic>>()) {
-        lines.add(
-          OrderLine(
-            productId: _readString(lineRaw, 'productId'),
-            productName: _readString(lineRaw, 'productName'),
-            quantity: _readInt(lineRaw, 'quantity', fallback: 1),
-            unitPrice: _readDouble(lineRaw, 'unitPrice'),
-          ),
-        );
-      }
-    }
-
-    final statusName = _readString(json, 'status', fallback: 'pending');
+  OrderRecord _orderFromApi(dynamic raw) {
+    final data = raw as Map<String, dynamic>;
+    final statusName = data['status']?.toString() ?? 'pending';
     final status = OrderStatus.values.firstWhere(
       (value) => value.name == statusName,
       orElse: () => OrderStatus.pending,
     );
 
     return OrderRecord(
-      id: _readString(json, 'id'),
-      customerEmail: _readString(json, 'customerEmail'),
+      id: data['id']?.toString() ?? '',
+      customerEmail: data['customerEmail']?.toString() ?? _userEmail ?? '',
       createdAt:
-          DateTime.tryParse(_readString(json, 'createdAt')) ?? DateTime.now(),
-      shippingAddress: _readString(json, 'shippingAddress'),
-      paymentMethod: _readString(json, 'paymentMethod'),
-      lines: lines,
-      total: _readDouble(json, 'total'),
+          DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
+      shippingAddress: data['shippingAddress']?.toString() ?? '',
+      paymentMethod: data['paymentMethod']?.toString() ?? '',
+      lines: [],
+      total: (data['total'] as num?)?.toDouble() ?? 0,
       status: status,
     );
   }
 
-  Map<String, dynamic> _restockToJson(RestockRecord record) {
-    return {
-      'productId': record.productId,
-      'productName': record.productName,
-      'quantityAdded': record.quantityAdded,
-      'createdAt': record.createdAt.toIso8601String(),
-    };
-  }
-
-  RestockRecord _restockFromJson(Map<String, dynamic> json) {
+  RestockRecord _restockFromApi(dynamic raw) {
+    final data = raw as Map<String, dynamic>;
     return RestockRecord(
-      productId: _readString(json, 'productId'),
-      productName: _readString(json, 'productName'),
-      quantityAdded: _readInt(json, 'quantityAdded', fallback: 0),
+      productId: data['productId']?.toString() ?? '',
+      productName: data['productName']?.toString() ?? '',
+      quantityAdded: (data['quantityAdded'] as num?)?.toInt() ?? 0,
       createdAt:
-          DateTime.tryParse(_readString(json, 'createdAt')) ?? DateTime.now(),
+          DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 
-  String _readString(
-    Map<String, dynamic> json,
-    String key, {
-    String fallback = '',
-  }) {
-    final value = json[key];
-    if (value is String) {
-      return value;
-    }
-    return fallback;
+  Future<void> _restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString(_tokenKey);
+    _userId = prefs.getInt(_userIdKey);
+    _userEmail = prefs.getString(_userEmailKey);
+    _role = prefs.getString(_userRoleKey);
+    _apiClient.token = _token;
   }
 
-  int _readInt(Map<String, dynamic> json, String key, {int fallback = 0}) {
-    final value = json[key];
-    if (value is int) {
-      return value;
-    }
-    if (value is double) {
-      return value.toInt();
-    }
-    if (value is String) {
-      return int.tryParse(value) ?? fallback;
-    }
-    return fallback;
+  Future<void> _saveSession({
+    required String token,
+    required int userId,
+    required String email,
+    required String role,
+  }) async {
+    _token = token;
+    _userId = userId;
+    _userEmail = email;
+    _role = role;
+    _apiClient.token = token;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+    await prefs.setInt(_userIdKey, userId);
+    await prefs.setString(_userEmailKey, email);
+    await prefs.setString(_userRoleKey, role);
   }
 
-  double _readDouble(Map<String, dynamic> json, String key) {
-    final value = json[key];
-    if (value is double) {
-      return value;
-    }
-    if (value is int) {
-      return value.toDouble();
-    }
-    if (value is String) {
-      return double.tryParse(value) ?? 0;
-    }
-    return 0;
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 
-  bool _readBool(
-    Map<String, dynamic> json,
-    String key, {
-    bool fallback = false,
-  }) {
-    final value = json[key];
-    if (value is bool) {
-      return value;
-    }
-    if (value is String) {
-      if (value.toLowerCase() == 'true') {
-        return true;
-      }
-      if (value.toLowerCase() == 'false') {
-        return false;
-      }
-    }
-    return fallback;
+  void _setError(String? message) {
+    _errorMessage = message;
+    notifyListeners();
   }
 }

@@ -84,11 +84,14 @@ class _ClientHomeState extends State<ClientHome> {
       return;
     }
 
-    final result = widget.store.placeOrder(
-      customerEmail: widget.userEmail,
+    final result = await widget.store.placeOrder(
       shippingAddress: request.shippingAddress,
       paymentMethod: request.paymentMethod,
     );
+
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(result.message ?? 'Order placed successfully.')),
@@ -106,7 +109,7 @@ class _ClientHomeState extends State<ClientHome> {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
-        final orders = widget.store.ordersForUser(widget.userEmail);
+        final orders = widget.store.allOrders;
         final cartItems = widget.store.cartItems;
         final products = widget.store.storefrontProducts;
 

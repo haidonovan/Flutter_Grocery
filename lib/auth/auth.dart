@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../admin/home.dart';
 import '../client/home.dart';
+import '../client/product_detail.dart';
+import '../client/product_list.dart';
 import '../store/grocery_store_state.dart';
 import 'login.dart';
 import 'register.dart';
@@ -19,142 +21,260 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _showRegister = false;
-  String? _activeUserEmail;
-  bool _isAdminSession = false;
   _RoleTab _roleTab = _RoleTab.client;
+  bool _showPublicShop = true;
 
-  void _handleClientLogin(String email, String password) {
-    if (email.isEmpty || password.isEmpty) {
+  Future<void> _handleClientLogin(String email, String password) async {
+    final result = await widget.store.login(
+      email: email,
+      password: password,
+      requireAdmin: false,
+    );
+
+    if (!mounted || result.success) {
       return;
     }
-    setState(() {
-      _activeUserEmail = email;
-      _isAdminSession = false;
-    });
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message ?? 'Login failed.')));
   }
 
-  void _handleRegister(String email, String password) {
-    if (email.isEmpty || password.isEmpty) {
-      return;
-    }
-    setState(() {
-      _activeUserEmail = email;
-      _isAdminSession = false;
-      _showRegister = false;
-    });
-  }
+  Future<void> _handleRegister(String email, String password) async {
+    final result = await widget.store.register(
+      email: email,
+      password: password,
+    );
 
-  void _handleAdminLogin(String email, String password) {
-    if (email.trim().toLowerCase() == 'admin@grocery.com' &&
-        password == 'admin123') {
-      setState(() {
-        _activeUserEmail = email.trim();
-        _isAdminSession = true;
-      });
+    if (!mounted || result.success) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Invalid admin credentials. Use admin@grocery.com / admin123',
-        ),
-      ),
+      SnackBar(content: Text(result.message ?? 'Register failed.')),
+    );
+  }
+
+  Future<void> _handleAdminLogin(String email, String password) async {
+    final result = await widget.store.login(
+      email: email,
+      password: password,
+      requireAdmin: true,
+    );
+
+    if (!mounted || result.success) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message ?? 'Admin login failed.')),
     );
   }
 
   void _handleLogout() {
+    widget.store.logout();
     setState(() {
-      _activeUserEmail = null;
-      _isAdminSession = false;
       _showRegister = false;
       _roleTab = _RoleTab.client;
+      _showPublicShop = true;
+    });
+  }
+
+  void _showLoginView({bool register = false}) {
+    setState(() {
+      _roleTab = _RoleTab.client;
+      _showRegister = register;
+      _showPublicShop = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_activeUserEmail != null) {
-      if (_isAdminSession) {
-        return AdminHome(store: widget.store, onLogout: _handleLogout);
-      }
-      return ClientHome(
-        userEmail: _activeUserEmail!,
-        store: widget.store,
-        onLogout: _handleLogout,
-      );
-    }
+    return AnimatedBuilder(
+      animation: widget.store,
+      builder: (context, _) {
+        if (widget.store.isAuthenticated) {
+          if (widget.store.isAdmin) {
+            return AdminHome(store: widget.store, onLogout: _handleLogout);
+          }
+          return ClientHome(
+            userEmail: widget.store.userEmail,
+            store: widget.store,
+            onLogout: _handleLogout,
+          );
+        }
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+        if (_roleTab == _RoleTab.client && _showPublicShop) {
+          final products = widget.store.storefrontProducts;
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Shop'),
+              actions: [
+                TextButton(
+                  onPressed: () => _showLoginView(register: false),
+                  child: const Text('Login'),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            body: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.teal.withValues(alpha: 0.1),
+                  child: Row(
                     children: [
-                      SegmentedButton<_RoleTab>(
-                        segments: const [
-                          ButtonSegment<_RoleTab>(
-                            value: _RoleTab.client,
-                            icon: Icon(Icons.person),
-                            label: Text('Client'),
-                          ),
-                          ButtonSegment<_RoleTab>(
-                            value: _RoleTab.admin,
-                            icon: Icon(Icons.admin_panel_settings),
-                            label: Text('Admin'),
-                          ),
-                        ],
-                        selected: {_roleTab},
-                        onSelectionChanged: (selected) {
-                          setState(() {
-                            _roleTab = selected.first;
-                            _showRegister = false;
-                          });
-                        },
+                      const Expanded(
+                        child: Text(
+                          'Browse products freely. Login to add items and checkout.',
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: _roleTab == _RoleTab.admin
-                            ? _AdminLoginForm(
-                                key: const ValueKey('admin-login'),
-                                onLogin: _handleAdminLogin,
-                              )
-                            : _showRegister
-                            ? RegisterPage(
-                                key: const ValueKey('register'),
-                                onRegister: _handleRegister,
-                                onSwitchToLogin: () {
-                                  setState(() {
-                                    _showRegister = false;
-                                  });
-                                },
-                              )
-                            : LoginPage(
-                                key: const ValueKey('login'),
-                                onLogin: _handleClientLogin,
-                                onSwitchToRegister: () {
-                                  setState(() {
-                                    _showRegister = true;
-                                  });
-                                },
-                              ),
+                      TextButton(
+                        onPressed: () => _showLoginView(register: true),
+                        child: const Text('Create account'),
                       ),
                     ],
+                  ),
+                ),
+                Expanded(
+                  child: ProductListPage(
+                    products: products,
+                    cartQuantityForProduct: (_) => 0,
+                    onOpenProduct: (productId) async {
+                      final product = widget.store.getProductById(productId);
+                      if (product == null) {
+                        return;
+                      }
+                      await Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ProductDetailPage(
+                            product: product,
+                            cartQuantity: 0,
+                            onAddToCart: () {
+                              Navigator.of(context).pop();
+                              _showLoginView(register: false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Login to add items to cart.'),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    onAddToCart: (_) {
+                      _showLoginView(register: false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Login to add items to cart.'),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SegmentedButton<_RoleTab>(
+                            segments: const [
+                              ButtonSegment<_RoleTab>(
+                                value: _RoleTab.client,
+                                icon: Icon(Icons.person),
+                                label: Text('Client'),
+                              ),
+                              ButtonSegment<_RoleTab>(
+                                value: _RoleTab.admin,
+                                icon: Icon(Icons.admin_panel_settings),
+                                label: Text('Admin'),
+                              ),
+                            ],
+                            selected: {_roleTab},
+                            onSelectionChanged: (selected) {
+                              setState(() {
+                                _roleTab = selected.first;
+                                _showRegister = false;
+                                _showPublicShop = _roleTab == _RoleTab.client;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          if (widget.store.isLoading)
+                            const LinearProgressIndicator(),
+                          if (widget.store.isLoading)
+                            const SizedBox(height: 12),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: _roleTab == _RoleTab.admin
+                                ? _AdminLoginForm(
+                                    key: const ValueKey('admin-login'),
+                                    onLogin: _handleAdminLogin,
+                                  )
+                                : _showRegister
+                                ? RegisterPage(
+                                    key: const ValueKey('register'),
+                                    onRegister: _handleRegister,
+                                    onSwitchToLogin: () {
+                                      setState(() {
+                                        _showRegister = false;
+                                      });
+                                    },
+                                  )
+                                : LoginPage(
+                                    key: const ValueKey('login'),
+                                    onLogin: _handleClientLogin,
+                                    onSwitchToRegister: () {
+                                      setState(() {
+                                        _showRegister = true;
+                                      });
+                                    },
+                                  ),
+                          ),
+                          if (_roleTab == _RoleTab.client)
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showPublicShop = true;
+                                });
+                              },
+                              child: const Text(
+                                'Browse products without login',
+                              ),
+                            ),
+                          if (widget.store.errorMessage != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text(
+                                widget.store.errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

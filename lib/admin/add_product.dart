@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../client/models.dart';
 
@@ -21,9 +24,14 @@ class ProductFormData {
 }
 
 class AddProductPage extends StatefulWidget {
-  const AddProductPage({super.key, this.initialProduct});
+  const AddProductPage({
+    super.key,
+    required this.onUploadImage,
+    this.initialProduct,
+  });
 
   final Product? initialProduct;
+  final Future<String?> Function(XFile file) onUploadImage;
 
   @override
   State<AddProductPage> createState() => _AddProductPageState();
@@ -31,12 +39,16 @@ class AddProductPage extends StatefulWidget {
 
 class _AddProductPageState extends State<AddProductPage> {
   final _formKey = GlobalKey<FormState>();
+  final _picker = ImagePicker();
   late final TextEditingController _nameController;
   late final TextEditingController _categoryController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _priceController;
   late final TextEditingController _stockController;
   late final TextEditingController _imageUrlController;
+
+  Uint8List? _previewBytes;
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -53,9 +65,7 @@ class _AddProductPageState extends State<AddProductPage> {
     _stockController = TextEditingController(
       text: product?.stock.toString() ?? '',
     );
-    _imageUrlController = TextEditingController(
-      text: product?.imageUrl ?? 'https://picsum.photos/seed/grocery/900/500',
-    );
+    _imageUrlController = TextEditingController(text: product?.imageUrl ?? '');
   }
 
   @override
@@ -67,6 +77,49 @@ class _AddProductPageState extends State<AddProductPage> {
     _stockController.dispose();
     _imageUrlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUpload() async {
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+
+    if (file == null) {
+      return;
+    }
+
+    setState(() {
+      _uploading = true;
+    });
+
+    try {
+      final bytes = await file.readAsBytes();
+      final uploadedUrl = await widget.onUploadImage(file);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Upload failed.')));
+        return;
+      }
+
+      setState(() {
+        _previewBytes = bytes;
+        _imageUrlController.text = uploadedUrl;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+        });
+      }
+    }
   }
 
   void _submit() {
@@ -97,6 +150,48 @@ class _AddProductPageState extends State<AddProductPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (_previewBytes != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(
+                  _previewBytes!,
+                  height: 180,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else if (_imageUrlController.text.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  _imageUrlController.text,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 180,
+                    color: Colors.black12,
+                    child: const Icon(Icons.image_not_supported),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _uploading ? null : _pickAndUpload,
+                    icon: _uploading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_upload),
+                    label: Text(_uploading ? 'Uploading...' : 'Upload image'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
