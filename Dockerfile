@@ -6,6 +6,7 @@ RUN useradd -m flutteruser && chown -R flutteruser:flutteruser /app
 USER flutteruser
 
 COPY pubspec.yaml pubspec.lock ./
+RUN git config --global --add safe.directory /sdks/flutter
 RUN flutter pub get
 
 COPY . .
