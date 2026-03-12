@@ -2,7 +2,7 @@ FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
 
-RUN useradd -m flutteruser && chown -R flutteruser:flutteruser /app
+RUN useradd -m flutteruser && chown -R flutteruser:flutteruser /app && chown -R flutteruser:flutteruser /sdks/flutter
 USER flutteruser
 
 COPY pubspec.yaml pubspec.lock ./
