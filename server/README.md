@@ -1,4 +1,4 @@
-﻿# Grocery API (Node + Express)
+﻿# Grocery API (Node + Express + Prisma + Neon)
 
 ## Setup
 
@@ -6,6 +6,30 @@
 cd server
 npm install
 cp .env.example .env
+```
+
+### 1. Set Neon connection string
+
+Set `DATABASE_URL` in `.env` from Neon Console.
+
+### 2. Configure Cloudinary
+
+Set:
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_FOLDER` (optional)
+
+### 3. Create tables
+
+```bash
+npx prisma migrate dev --name init
+npx prisma generate
+```
+
+### 4. Run API
+
+```bash
 npm run dev
 ```
 
@@ -35,14 +59,13 @@ npm run dev
 
 - `GET /api/restocks` (admin)
 
-## Uploads (local file storage)
+## Uploads (Cloudinary)
 
 - `POST /api/uploads` (admin, multipart `image` field)
-- Files are served at `http://localhost:4000/uploads/<filename>`
+- Response: `{ url, publicId }`
 
 ## Notes
 
 - Admin seed uses `ADMIN_EMAIL` + `ADMIN_PASSWORD` from `.env`.
 - Auth uses JWT (`Authorization: Bearer <token>`).
-- SQLite file stored at `server/data/grocery.db`.
-- Uploaded images stored in `server/uploads`.
+- Prisma schema at `server/prisma/schema.prisma`.

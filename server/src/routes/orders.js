@@ -1,49 +1,40 @@
 ﻿import { Router } from 'express';
 
-import db from '../db.js';
+import prisma from '../db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', requireAuth, requireRole('admin'), (req, res) => {
-  const rows = db
-    .prepare(
-      `SELECT orders.*, users.email AS customer_email
-       FROM orders
-       LEFT JOIN users ON users.id = orders.customer_id
-       ORDER BY orders.created_at DESC`
-    )
-    .all();
+router.get('/', requireAuth, requireRole('admin'), async (req, res) => {
+  const rows = await prisma.order.findMany({
+    include: { customer: true },
+    orderBy: { createdAt: 'desc' },
+  });
   return res.json(rows.map(mapOrder));
 });
 
-router.get('/me', requireAuth, (req, res) => {
-  const rows = db
-    .prepare(
-      `SELECT orders.*, users.email AS customer_email
-       FROM orders
-       LEFT JOIN users ON users.id = orders.customer_id
-       WHERE orders.customer_id = ?
-       ORDER BY orders.created_at DESC`
-    )
-    .all(req.user.id);
+router.get('/me', requireAuth, async (req, res) => {
+  const rows = await prisma.order.findMany({
+    where: { customerId: req.user.id },
+    include: { customer: true },
+    orderBy: { createdAt: 'desc' },
+  });
   return res.json(rows.map(mapOrder));
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const { shippingAddress, paymentMethod, lines } = req.body || {};
   if (!shippingAddress || !paymentMethod || !Array.isArray(lines) || lines.length === 0) {
     return res.status(400).json({ error: 'Invalid order payload.' });
   }
 
-  const products = new Map(
-    db.prepare('SELECT * FROM products').all().map((row) => [row.id, row])
-  );
+  const products = await prisma.product.findMany();
+  const productMap = new Map(products.map((row) => [row.id, row]));
 
   let total = 0;
   for (const line of lines) {
-    const product = products.get(line.productId);
-    if (!product || product.is_active !== 1) {
+    const product = productMap.get(line.productId);
+    if (!product || !product.isActive) {
       return res.status(400).json({ error: 'Product unavailable.' });
     }
     if (product.stock < line.quantity) {
@@ -53,100 +44,110 @@ router.post('/', requireAuth, (req, res) => {
   }
 
   const orderId = `ORD-${Date.now()}`;
-  const now = new Date().toISOString();
 
-  const tx = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO orders (id, customer_id, shipping_address, payment_method, total, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(orderId, req.user.id, shippingAddress, paymentMethod, total, 'pending', now);
-
-    const insertLine = db.prepare(
-      `INSERT INTO order_lines (order_id, product_id, product_name, quantity, unit_price)
-       VALUES (?, ?, ?, ?, ?)`
-    );
-    const updateStock = db.prepare('UPDATE products SET stock = ?, updated_at = ? WHERE id = ?');
+  await prisma.$transaction(async (tx) => {
+    await tx.order.create({
+      data: {
+        id: orderId,
+        customerId: req.user.id,
+        shippingAddress,
+        paymentMethod,
+        total,
+        status: 'pending',
+      },
+    });
 
     for (const line of lines) {
-      const product = products.get(line.productId);
-      insertLine.run(orderId, product.id, product.name, line.quantity, product.price);
-      updateStock.run(product.stock - line.quantity, now, product.id);
-      products.set(product.id, { ...product, stock: product.stock - line.quantity });
+      const product = productMap.get(line.productId);
+      await tx.orderLine.create({
+        data: {
+          orderId,
+          productId: product.id,
+          productName: product.name,
+          quantity: line.quantity,
+          unitPrice: product.price,
+        },
+      });
+
+      await tx.product.update({
+        where: { id: product.id },
+        data: { stock: product.stock - line.quantity },
+      });
+      productMap.set(product.id, {
+        ...product,
+        stock: product.stock - line.quantity,
+      });
     }
   });
 
-  tx();
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { customer: true },
+  });
 
-  const order = db
-    .prepare(
-      `SELECT orders.*, users.email AS customer_email
-       FROM orders
-       LEFT JOIN users ON users.id = orders.customer_id
-       WHERE orders.id = ?`
-    )
-    .get(orderId);
   return res.status(201).json(mapOrder(order));
 });
 
-router.patch('/:id/status', requireAuth, requireRole('admin'), (req, res) => {
+router.patch('/:id/status', requireAuth, requireRole('admin'), async (req, res) => {
   const { status } = req.body || {};
   const allowed = new Set(['pending', 'processing', 'shipped', 'delivered', 'cancelled']);
   if (!allowed.has(status)) {
     return res.status(400).json({ error: 'Invalid status.' });
   }
 
-  const existing = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) {
     return res.status(404).json({ error: 'Order not found.' });
   }
 
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
-  const order = db
-    .prepare(
-      `SELECT orders.*, users.email AS customer_email
-       FROM orders
-       LEFT JOIN users ON users.id = orders.customer_id
-       WHERE orders.id = ?`
-    )
-    .get(req.params.id);
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: { status },
+    include: { customer: true },
+  });
   return res.json(mapOrder(order));
 });
 
-router.get('/:id/lines', requireAuth, (req, res) => {
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+router.get('/:id/lines', requireAuth, async (req, res) => {
+  const order = await prisma.order.findUnique({
+    where: { id: req.params.id },
+  });
   if (!order) {
     return res.status(404).json({ error: 'Order not found.' });
   }
 
-  if (req.user.role !== 'admin' && order.customer_id !== req.user.id) {
+  if (req.user.role !== 'admin' && order.customerId !== req.user.id) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const lines = db
-    .prepare('SELECT * FROM order_lines WHERE order_id = ?')
-    .all(req.params.id);
+  const lines = await prisma.orderLine.findMany({
+    where: { orderId: req.params.id },
+  });
 
   return res.json(
     lines.map((line) => ({
-      productId: line.product_id,
-      productName: line.product_name,
+      productId: line.productId,
+      productName: line.productName,
       quantity: line.quantity,
-      unitPrice: line.unit_price,
-      subtotal: line.unit_price * line.quantity,
+      unitPrice: line.unitPrice,
+      subtotal: line.unitPrice * line.quantity,
     }))
   );
 });
 
 function mapOrder(row) {
+  if (!row) {
+    return null;
+  }
   return {
     id: row.id,
-    customerId: row.customer_id,
-    customerEmail: row.customer_email || '',
-    shippingAddress: row.shipping_address,
-    paymentMethod: row.payment_method,
+    customerId: row.customerId,
+    customerEmail: row.customer?.email ?? '',
+    shippingAddress: row.shippingAddress,
+    paymentMethod: row.paymentMethod,
     total: row.total,
     status: row.status,
-    createdAt: row.created_at,
+    createdAt: row.createdAt,
   };
 }
 

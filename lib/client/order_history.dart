@@ -43,6 +43,21 @@ class OrderHistoryPage extends StatelessWidget {
     }
   }
 
+  Color _statusColor(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.delivered:
+        return Colors.green;
+      case OrderStatus.shipped:
+        return Colors.blue;
+      case OrderStatus.processing:
+        return Colors.orange;
+      case OrderStatus.cancelled:
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (orders.isEmpty) {
@@ -52,19 +67,45 @@ class OrderHistoryPage extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: orders.length,
-
       itemBuilder: (context, index) {
         final order = orders[index];
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
             title: Text('Order ${order.id}'),
             subtitle: Text(
-              '${_formatDate(order.createdAt)} • ${_statusText(order.status)}',
+              '${_formatDate(order.createdAt)} - ${_statusText(order.status)}',
             ),
-            trailing: Text('\$${order.total.toStringAsFixed(2)}'),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${order.total.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusColor(order.status).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _statusText(order.status),
+                    style: TextStyle(
+                      color: _statusColor(order.status),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
               Align(

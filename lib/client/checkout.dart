@@ -55,16 +55,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              'Order summary',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
             Card(
+              elevation: 0,
+              color: Colors.grey.shade100,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Order summary',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         const Text('Items'),
@@ -77,7 +80,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       children: [
                         const Text('Total'),
                         const Spacer(),
-                        Text('\$${widget.totalAmount.toStringAsFixed(2)}'),
+                        Text(
+                          '\$${widget.totalAmount.toStringAsFixed(2)}',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ],
                     ),
                   ],
@@ -85,6 +91,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ),
             const SizedBox(height: 16),
+            Text(
+              'Delivery details',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _addressController,
               maxLines: 3,
@@ -100,10 +111,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
               },
             ),
             const SizedBox(height: 16),
+            Text(
+              'Payment method',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: _paymentMethod,
               decoration: const InputDecoration(
-                labelText: 'Payment method',
+                labelText: 'Select method',
                 border: OutlineInputBorder(),
               ),
               items: const [
@@ -128,11 +144,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 }
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _placeOrder,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Place order'),
+              icon: const Icon(Icons.lock_outline),
+              label: const Text('Place order securely'),
             ),
           ],
         ),

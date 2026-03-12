@@ -32,17 +32,38 @@ class CartPage extends StatelessWidget {
       children: [
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             itemCount: items.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = items[index];
               return Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                color: Colors.grey.shade100,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          item.product.imageUrl,
+                          width: 84,
+                          height: 84,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                width: 84,
+                                height: 84,
+                                color: Colors.black12,
+                                child: const Icon(Icons.image_not_supported),
+                              ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,31 +75,38 @@ class CartPage extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               '\$${item.product.price.toStringAsFixed(2)} each',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: Colors.grey.shade700),
                             ),
-                            const SizedBox(height: 4),
-                            Text('Stock: ${item.product.stock}'),
                             const SizedBox(height: 4),
                             Text(
                               'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Column(
                         children: [
-                          IconButton(
-                            onPressed: () => onDecrease(item),
-                            icon: const Icon(Icons.remove_circle_outline),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () => onDecrease(item),
+                                icon: const Icon(Icons.remove_circle_outline),
+                              ),
+                              Text('${item.quantity}'),
+                              IconButton(
+                                onPressed: () => onIncrease(item),
+                                icon: const Icon(Icons.add_circle_outline),
+                              ),
+                            ],
                           ),
-                          Text('${item.quantity}'),
-                          IconButton(
-                            onPressed: () => onIncrease(item),
-                            icon: const Icon(Icons.add_circle_outline),
-                          ),
-                          IconButton(
+                          TextButton(
                             onPressed: () => onRemove(item),
-                            icon: const Icon(Icons.delete_outline),
+                            child: const Text('Remove'),
                           ),
                         ],
                       ),
@@ -91,35 +119,40 @@ class CartPage extends StatelessWidget {
         ),
         SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Total',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const Spacer(),
-                        Text(
-                          '\$${totalAmount.toStringAsFixed(2)}',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ],
+                    Text(
+                      'Total',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 10),
-                    FilledButton(
-                      onPressed: onCheckout,
-                      child: const Text('Proceed to checkout'),
+                    const Spacer(),
+                    Text(
+                      '\$${totalAmount.toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: onCheckout,
+                  child: const Text('Proceed to checkout'),
+                ),
+              ],
             ),
           ),
         ),

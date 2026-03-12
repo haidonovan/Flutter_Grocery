@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import path from 'node:path';
 
-import db from './db.js';
+import prisma from './db.js';
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
@@ -31,42 +31,41 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/restocks', restockRoutes);
 app.use('/api/uploads', uploadRoutes);
 
-seedAdmin();
-seedProducts();
+seedAdmin()
+  .then(seedProducts)
+  .catch((err) => console.error('Seed failed:', err));
 
 app.listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
 
-function seedAdmin() {
+async function seedAdmin() {
   const email = process.env.ADMIN_EMAIL;
   const password = process.env.ADMIN_PASSWORD;
   if (!email || !password) {
     return;
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return;
   }
 
   const hash = bcrypt.hashSync(password, 10);
-  db.prepare(
-    'INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, ?, ?)'
-  ).run(email, hash, 'admin', new Date().toISOString());
+  await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hash,
+      role: 'admin',
+    },
+  });
 }
 
-function seedProducts() {
-  const count = db.prepare('SELECT COUNT(*) AS count FROM products').get().count;
+async function seedProducts() {
+  const count = await prisma.product.count();
   if (count > 0) {
     return;
   }
-
-  const now = new Date().toISOString();
-  const insert = db.prepare(
-    `INSERT INTO products (id, name, category, description, price, image_url, stock, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
-  );
 
   const items = [
     {
@@ -108,16 +107,6 @@ function seedProducts() {
   ];
 
   for (const item of items) {
-    insert.run(
-      item.id,
-      item.name,
-      item.category,
-      item.description,
-      item.price,
-      item.imageUrl,
-      item.stock,
-      now,
-      now
-    );
+    await prisma.product.create({ data: item });
   }
 }

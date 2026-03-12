@@ -1,40 +1,60 @@
 ﻿import { Router } from 'express';
-import fs from 'node:fs';
-import path from 'node:path';
 import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-const uploadDir = path.resolve(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, safeName);
-  },
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-router.post('/', requireAuth, requireRole('admin'), upload.single('image'), (req, res) => {
+router.post('/', requireAuth, requireRole('admin'), upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
 
-  const fileUrl = `/uploads/${req.file.filename}`;
-  return res.status(201).json({ url: fileUrl, filename: req.file.filename });
+  if (!process.env.CLOUDINARY_CLOUD_NAME ||
+      !process.env.CLOUDINARY_API_KEY ||
+      !process.env.CLOUDINARY_API_SECRET) {
+    return res.status(500).json({ error: 'Cloudinary is not configured.' });
+  }
+
+  try {
+    const folder = process.env.CLOUDINARY_FOLDER || 'grocery-products';
+
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: 'image',
+        },
+        (error, uploadResult) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(uploadResult);
+          }
+        }
+      );
+      stream.end(req.file.buffer);
+    });
+
+    return res.status(201).json({
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Upload failed.' });
+  }
 });
 
 export default router;
