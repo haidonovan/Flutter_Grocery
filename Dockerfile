@@ -5,7 +5,7 @@ WORKDIR /app
 RUN useradd -m flutteruser && chown -R flutteruser:flutteruser /app && chown -R flutteruser:flutteruser /sdks/flutter
 USER flutteruser
 
-COPY pubspec.yaml pubspec.lock ./
+COPY --chown=flutteruser:flutteruser pubspec.yaml pubspec.lock ./
 RUN git config --global --add safe.directory /sdks/flutter
 RUN flutter pub get
 
