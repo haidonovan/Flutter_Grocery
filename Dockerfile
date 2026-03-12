@@ -9,7 +9,7 @@ COPY --chown=flutteruser:flutteruser pubspec.yaml pubspec.lock ./
 RUN git config --global --add safe.directory /sdks/flutter
 RUN flutter pub get
 
-COPY . .
+COPY --chown=flutteruser:flutteruser . .
 RUN flutter build web --release
 
 FROM nginx:1.27-alpine
