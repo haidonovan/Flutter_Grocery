@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
 
   static const String _apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:4000',
+    defaultValue: 'https://grocerystore-production-eea3.up.railway.app',
   );
 
   final Future<GroceryStoreState> _storeFuture = GroceryStoreState.create(
