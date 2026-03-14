@@ -290,8 +290,8 @@ class _AdminLoginForm extends StatefulWidget {
 
 class _AdminLoginFormState extends State<_AdminLoginForm> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'admin@grocery.com');
-  final _passwordController = TextEditingController(text: 'admin123');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   @override
   void dispose() {
