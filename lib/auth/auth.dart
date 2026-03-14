@@ -5,15 +5,23 @@ import '../client/home.dart';
 import '../client/product_detail.dart';
 import '../client/product_list.dart';
 import '../store/grocery_store_state.dart';
+import '../widgets/theme_mode_menu.dart';
 import 'login.dart';
 import 'register.dart';
 
 enum _RoleTab { client, admin }
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key, required this.store});
+  const AuthGate({
+    super.key,
+    required this.store,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
 
   final GroceryStoreState store;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -23,6 +31,18 @@ class _AuthGateState extends State<AuthGate> {
   bool _showRegister = false;
   _RoleTab _roleTab = _RoleTab.client;
   bool _showPublicShop = true;
+  static const bool _showAdminTab = bool.fromEnvironment(
+    'SHOW_ADMIN',
+    defaultValue: true,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_showAdminTab) {
+      _roleTab = _RoleTab.client;
+    }
+  }
 
   Future<void> _handleClientLogin(String email, String password) async {
     final result = await widget.store.login(
@@ -95,12 +115,19 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, _) {
         if (widget.store.isAuthenticated) {
           if (widget.store.isAdmin) {
-            return AdminHome(store: widget.store, onLogout: _handleLogout);
+            return AdminHome(
+              store: widget.store,
+              onLogout: _handleLogout,
+              themeMode: widget.themeMode,
+              onThemeModeChanged: widget.onThemeModeChanged,
+            );
           }
           return ClientHome(
             userEmail: widget.store.userEmail,
             store: widget.store,
             onLogout: _handleLogout,
+            themeMode: widget.themeMode,
+            onThemeModeChanged: widget.onThemeModeChanged,
           );
         }
 
@@ -110,6 +137,11 @@ class _AuthGateState extends State<AuthGate> {
             appBar: AppBar(
               title: const Text('Shop'),
               actions: [
+                ThemeModeMenu(
+                  themeMode: widget.themeMode,
+                  onChanged: widget.onThemeModeChanged,
+                ),
+                const SizedBox(width: 4),
                 TextButton(
                   onPressed: () => _showLoginView(register: false),
                   child: const Text('Login'),
@@ -160,6 +192,15 @@ class _AuthGateState extends State<AuthGate> {
                                 ),
                               );
                             },
+                            isFavorite: false,
+                            onToggleFavorite: () {
+                              Navigator.of(context).pop();
+                              _showLoginView(register: false);
+                            },
+                            onRate: (_) {
+                              Navigator.of(context).pop();
+                              _showLoginView(register: false);
+                            },
                           ),
                         ),
                       );
@@ -172,6 +213,13 @@ class _AuthGateState extends State<AuthGate> {
                         ),
                       );
                     },
+                    isFavorite: (_) => false,
+                    onToggleFavorite: (_) async {
+                      _showLoginView(register: false);
+                    },
+                    isLoading:
+                        widget.store.isInitializing ||
+                        widget.store.isLoadingProducts,
                   ),
                 ),
               ],
@@ -192,18 +240,27 @@ class _AuthGateState extends State<AuthGate> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ThemeModeMenu(
+                              themeMode: widget.themeMode,
+                              onChanged: widget.onThemeModeChanged,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           SegmentedButton<_RoleTab>(
-                            segments: const [
-                              ButtonSegment<_RoleTab>(
+                            segments: [
+                              const ButtonSegment<_RoleTab>(
                                 value: _RoleTab.client,
                                 icon: Icon(Icons.person),
                                 label: Text('Client'),
                               ),
-                              ButtonSegment<_RoleTab>(
-                                value: _RoleTab.admin,
-                                icon: Icon(Icons.admin_panel_settings),
-                                label: Text('Admin'),
-                              ),
+                              if (_showAdminTab)
+                                const ButtonSegment<_RoleTab>(
+                                  value: _RoleTab.admin,
+                                  icon: Icon(Icons.admin_panel_settings),
+                                  label: Text('Admin'),
+                                ),
                             ],
                             selected: {_roleTab},
                             onSelectionChanged: (selected) {

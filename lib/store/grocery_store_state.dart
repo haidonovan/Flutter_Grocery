@@ -11,7 +11,7 @@ class CartViewItem {
   final Product product;
   final int quantity;
 
-  double get subtotal => product.price * quantity;
+  double get subtotal => product.discountedPrice * quantity;
 }
 
 class PlaceOrderResult {
@@ -43,17 +43,28 @@ class GroceryStoreState extends ChangeNotifier {
     final store = GroceryStoreState._(client);
     await store._restoreSession();
     await store.refreshAll();
+    store._isInitializing = false;
+    store.notifyListeners();
     return store;
   }
 
   final ApiClient _apiClient;
 
   final List<Product> _products = [];
+  final List<String> _categories = [];
   final List<CartItem> _cart = [];
   final List<OrderRecord> _orders = [];
   final List<RestockRecord> _restockHistory = [];
+  final List<Coupon> _coupons = [];
+  final List<Coupon> _activeCoupons = [];
+  final List<SupportMessage> _supportMessages = [];
+  final Set<String> _favoriteProductIds = {};
 
   bool _isLoading = false;
+  bool _isInitializing = true;
+  bool _isLoadingProducts = false;
+  bool _isLoadingOrders = false;
+  bool _isLoadingCategories = false;
   String? _errorMessage;
 
   String? _token;
@@ -62,6 +73,10 @@ class GroceryStoreState extends ChangeNotifier {
   String? _role;
 
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
+  bool get isLoadingProducts => _isLoadingProducts;
+  bool get isLoadingOrders => _isLoadingOrders;
+  bool get isLoadingCategories => _isLoadingCategories;
   String? get errorMessage => _errorMessage;
 
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
@@ -70,6 +85,7 @@ class GroceryStoreState extends ChangeNotifier {
   int? get userId => _userId;
 
   List<Product> get allProducts => List.unmodifiable(_products);
+  List<String> get categories => List.unmodifiable(_categories);
 
   List<Product> get storefrontProducts =>
       _products.where((item) => item.isActive).toList(growable: false);
@@ -77,6 +93,11 @@ class GroceryStoreState extends ChangeNotifier {
   List<OrderRecord> get allOrders => List.unmodifiable(_orders);
 
   List<RestockRecord> get restockHistory => List.unmodifiable(_restockHistory);
+  List<Coupon> get coupons => List.unmodifiable(_coupons);
+  List<Coupon> get activeCoupons => List.unmodifiable(_activeCoupons);
+  List<SupportMessage> get supportMessages =>
+      List.unmodifiable(_supportMessages);
+  bool isFavorite(String productId) => _favoriteProductIds.contains(productId);
 
   List<CartViewItem> get cartItems {
     final result = <CartViewItem>[];
@@ -282,17 +303,26 @@ class GroceryStoreState extends ChangeNotifier {
   Future<void> refreshAll() async {
     if (!isAuthenticated) {
       await _loadProducts(includeInactive: false);
+      await _loadCategories();
       return;
     }
 
     await _loadProducts(includeInactive: isAdmin);
+    await _loadCategories();
     await _loadOrders();
     if (isAdmin) {
       await _loadRestocks();
+      await _loadCoupons();
+      await _loadSupportMessages();
+    } else {
+      await _loadFavorites();
+      await _loadActiveCoupons();
     }
   }
 
   Future<void> _loadProducts({required bool includeInactive}) async {
+    _isLoadingProducts = true;
+    notifyListeners();
     try {
       final response = await _apiClient.getJson(
         '/api/products',
@@ -309,6 +339,9 @@ class GroceryStoreState extends ChangeNotifier {
       _setError(err.message);
     } catch (_) {
       _setError('Unable to reach server.');
+    } finally {
+      _isLoadingProducts = false;
+      notifyListeners();
     }
   }
 
@@ -318,6 +351,8 @@ class GroceryStoreState extends ChangeNotifier {
       return;
     }
 
+    _isLoadingOrders = true;
+    notifyListeners();
     try {
       final endpoint = isAdmin ? '/api/orders' : '/api/orders/me';
       final response = await _apiClient.getJson(endpoint);
@@ -342,6 +377,9 @@ class GroceryStoreState extends ChangeNotifier {
       _setError(err.message);
     } catch (_) {
       _setError('Unable to reach server.');
+    } finally {
+      _isLoadingOrders = false;
+      notifyListeners();
     }
   }
 
@@ -359,6 +397,7 @@ class GroceryStoreState extends ChangeNotifier {
           productName: map['productName']?.toString() ?? '',
           quantity: (map['quantity'] as num?)?.toInt() ?? 0,
           unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
+          discountPercent: (map['discountPercent'] as num?)?.toDouble() ?? 0,
         );
       }).toList();
     } catch (_) {
@@ -384,9 +423,178 @@ class GroceryStoreState extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadCoupons() async {
+    try {
+      final response = await _apiClient.getJson('/api/coupons');
+      final data = response['data'] as List<dynamic>? ?? [];
+      _coupons
+        ..clear()
+        ..addAll(
+          data.map((raw) {
+            final map = raw as Map<String, dynamic>;
+            return Coupon(
+              id: (map['id'] as num?)?.toInt() ?? 0,
+              code: map['code']?.toString() ?? '',
+              type: map['type']?.toString() ?? 'percent',
+              value: (map['value'] as num?)?.toDouble() ?? 0,
+              isActive: map['isActive'] == true,
+              description: map['description']?.toString(),
+              startsAt: DateTime.tryParse(map['startsAt']?.toString() ?? ''),
+              endsAt: DateTime.tryParse(map['endsAt']?.toString() ?? ''),
+              audience: map['audience']?.toString(),
+              userEmail: map['userEmail']?.toString(),
+            );
+          }),
+        );
+      notifyListeners();
+    } catch (_) {
+      // ignore coupon load failures for now
+    }
+  }
+
+  Future<void> _loadActiveCoupons() async {
+    try {
+      final response = await _apiClient.getJson('/api/coupons/active');
+      final data = response['data'] as List<dynamic>? ?? [];
+      _activeCoupons
+        ..clear()
+        ..addAll(
+          data.map((raw) {
+            final map = raw as Map<String, dynamic>;
+            return Coupon(
+              id: (map['id'] as num?)?.toInt() ?? 0,
+              code: map['code']?.toString() ?? '',
+              type: map['type']?.toString() ?? 'percent',
+              value: (map['value'] as num?)?.toDouble() ?? 0,
+              isActive: map['isActive'] == true,
+              description: map['description']?.toString(),
+              startsAt: DateTime.tryParse(map['startsAt']?.toString() ?? ''),
+              endsAt: DateTime.tryParse(map['endsAt']?.toString() ?? ''),
+              audience: map['audience']?.toString(),
+              userEmail: map['userEmail']?.toString(),
+            );
+          }),
+        );
+      notifyListeners();
+    } catch (_) {
+      // ignore active coupons load failures
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    _isLoadingCategories = true;
+    notifyListeners();
+    try {
+      final response = await _apiClient.getJson('/api/categories');
+      final data = response['data'] as List<dynamic>? ?? [];
+      _categories
+        ..clear()
+        ..addAll(
+          data
+              .map((value) => value?.toString() ?? '')
+              .where((value) => value.isNotEmpty),
+        );
+      notifyListeners();
+    } on ApiException catch (err) {
+      _setError(err.message);
+    } catch (_) {
+      _setError('Unable to reach server.');
+    } finally {
+      _isLoadingCategories = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final response = await _apiClient.getJson('/api/favorites');
+      final data = response['data'] as List<dynamic>? ?? [];
+      _favoriteProductIds
+        ..clear()
+        ..addAll(data.map((value) => value.toString()));
+      notifyListeners();
+    } catch (_) {
+      // ignore favorites load failures
+    }
+  }
+
+  Future<void> toggleFavorite(String productId) async {
+    final response = await _apiClient.postJson(
+      '/api/favorites/$productId',
+      {},
+    );
+    final isFavorite = response['isFavorite'] == true;
+    if (isFavorite) {
+      _favoriteProductIds.add(productId);
+    } else {
+      _favoriteProductIds.remove(productId);
+    }
+    notifyListeners();
+  }
+
+  Future<void> submitRating(String productId, int rating) async {
+    final response = await _apiClient.postJson(
+      '/api/ratings/$productId',
+      {'rating': rating},
+    );
+    final avg = (response['ratingAvg'] as num?)?.toDouble();
+    final count = (response['ratingCount'] as num?)?.toInt();
+    if (avg != null && count != null) {
+      final index = _products.indexWhere((item) => item.id == productId);
+      if (index != -1) {
+        final updated = _products[index].copyWith(
+          ratingAvg: avg,
+          ratingCount: count,
+        );
+        _products[index] = updated;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> submitSupportMessage(String message) async {
+    await _apiClient.postJson('/api/support', {'message': message});
+  }
+
+  Future<void> _loadSupportMessages() async {
+    try {
+      final response = await _apiClient.getJson('/api/support');
+      final data = response['data'] as List<dynamic>? ?? [];
+      _supportMessages
+        ..clear()
+        ..addAll(
+          data.map((raw) {
+            final map = raw as Map<String, dynamic>;
+            return SupportMessage(
+              id: (map['id'] as num?)?.toInt() ?? 0,
+              message: map['message']?.toString() ?? '',
+              isResolved: map['isResolved'] == true,
+              createdAt:
+                  DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
+                  DateTime.now(),
+              userEmail:
+                  (map['user'] as Map<String, dynamic>?)?['email']?.toString() ??
+                      '',
+            );
+          }),
+        );
+      notifyListeners();
+    } catch (_) {
+      // ignore support load failures
+    }
+  }
+
+  Future<void> resolveSupportMessage(int id, bool isResolved) async {
+    await _apiClient.patchJson('/api/support/$id', {
+      'isResolved': isResolved,
+    });
+    await _loadSupportMessages();
+  }
+
   Future<PlaceOrderResult> placeOrder({
     required String shippingAddress,
     required String paymentMethod,
+    String? couponCode,
   }) async {
     if (_cart.isEmpty) {
       return const PlaceOrderResult(success: false, message: 'Cart is empty.');
@@ -409,6 +617,7 @@ class GroceryStoreState extends ChangeNotifier {
         'shippingAddress': shippingAddress,
         'paymentMethod': paymentMethod,
         'lines': lines,
+        'couponCode': couponCode,
       });
 
       _cart.clear();
@@ -429,6 +638,9 @@ class GroceryStoreState extends ChangeNotifier {
     required String category,
     required String description,
     required double price,
+    required double discountPercent,
+    DateTime? discountStart,
+    DateTime? discountEnd,
     required int stock,
     required String imageUrl,
   }) async {
@@ -437,6 +649,9 @@ class GroceryStoreState extends ChangeNotifier {
       'category': category,
       'description': description,
       'price': price,
+      'discountPercent': discountPercent,
+      'discountStart': discountStart?.toIso8601String(),
+      'discountEnd': discountEnd?.toIso8601String(),
       'stock': stock,
       'imageUrl': imageUrl,
     });
@@ -449,6 +664,9 @@ class GroceryStoreState extends ChangeNotifier {
       'category': updated.category,
       'description': updated.description,
       'price': updated.price,
+      'discountPercent': updated.discountPercent,
+      'discountStart': updated.discountStart?.toIso8601String(),
+      'discountEnd': updated.discountEnd?.toIso8601String(),
       'imageUrl': updated.imageUrl,
       'stock': updated.stock,
       'isActive': updated.isActive,
@@ -486,6 +704,72 @@ class GroceryStoreState extends ChangeNotifier {
     await refreshAll();
   }
 
+  Future<void> updateOrderTracking({
+    required String orderId,
+    String? trackingNumber,
+    String? trackingCarrier,
+    String? trackingStatus,
+  }) async {
+    await _apiClient.patchJson('/api/orders/$orderId/tracking', {
+      'trackingNumber': trackingNumber,
+      'trackingCarrier': trackingCarrier,
+      'trackingStatus': trackingStatus,
+    });
+    await refreshAll();
+  }
+
+  Future<void> createCoupon({
+    required String code,
+    required String type,
+    required double value,
+    required String audience,
+    String? description,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? userEmail,
+  }) async {
+    await _apiClient.postJson('/api/coupons', {
+      'code': code,
+      'type': type,
+      'value': value,
+      'audience': audience,
+      'description': description,
+      'startsAt': startsAt?.toIso8601String(),
+      'endsAt': endsAt?.toIso8601String(),
+      'userEmail': userEmail,
+    });
+    await _loadCoupons();
+  }
+
+  Future<void> updateCoupon({
+    required int id,
+    required bool isActive,
+    required String type,
+    required double value,
+    required String audience,
+    String? description,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? userEmail,
+  }) async {
+    await _apiClient.patchJson('/api/coupons/$id', {
+      'isActive': isActive,
+      'type': type,
+      'value': value,
+      'audience': audience,
+      'description': description,
+      'startsAt': startsAt?.toIso8601String(),
+      'endsAt': endsAt?.toIso8601String(),
+      'userEmail': userEmail,
+    });
+    await _loadCoupons();
+  }
+
+  Future<void> deleteCoupon(int id) async {
+    await _apiClient.delete('/api/coupons/$id');
+    await _loadCoupons();
+  }
+
   Future<String?> uploadImage(XFile file) async {
     _setLoading(true);
     try {
@@ -517,6 +801,13 @@ class GroceryStoreState extends ChangeNotifier {
       category: data['category']?.toString() ?? '',
       description: data['description']?.toString() ?? '',
       price: (data['price'] as num?)?.toDouble() ?? 0,
+      discountPercent: (data['discountPercent'] as num?)?.toDouble() ?? 0,
+      discountStart: DateTime.tryParse(
+        data['discountStart']?.toString() ?? '',
+      ),
+      discountEnd: DateTime.tryParse(data['discountEnd']?.toString() ?? ''),
+      ratingAvg: (data['ratingAvg'] as num?)?.toDouble() ?? 0,
+      ratingCount: (data['ratingCount'] as num?)?.toInt() ?? 0,
       imageUrl: data['imageUrl']?.toString() ?? '',
       stock: (data['stock'] as num?)?.toInt() ?? 0,
       isActive: data['isActive'] == null ? true : data['isActive'] == true,
@@ -542,6 +833,16 @@ class GroceryStoreState extends ChangeNotifier {
       lines: [],
       total: (data['total'] as num?)?.toDouble() ?? 0,
       status: status,
+      trackingNumber: data['trackingNumber']?.toString(),
+      trackingCarrier: data['trackingCarrier']?.toString(),
+      trackingStatus: data['trackingStatus']?.toString(),
+      trackingUpdatedAt: DateTime.tryParse(
+        data['trackingUpdatedAt']?.toString() ?? '',
+      ),
+      couponCode: data['couponCode']?.toString(),
+      couponType: data['couponType']?.toString(),
+      couponValue: (data['couponValue'] as num?)?.toDouble(),
+      couponDiscount: (data['couponDiscount'] as num?)?.toDouble(),
     );
   }
 

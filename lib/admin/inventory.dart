@@ -59,22 +59,26 @@ class InventoryPage extends StatelessWidget {
                 child: ListTile(
                   title: Text(product.name),
                   subtitle: Text('Category: ${product.category}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Stock ${product.stock}',
-                        style: TextStyle(
-                          color: product.stock <= 5 ? Colors.red : Colors.green,
-                          fontWeight: FontWeight.w700,
+                  trailing: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Stock ${product.stock}',
+                          style: TextStyle(
+                            color:
+                                product.stock <= 5 ? Colors.red : Colors.green,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      FilledButton.tonal(
-                        onPressed: () => _restock(context, product),
-                        child: const Text('Restock'),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        FilledButton.tonal(
+                          onPressed: () => _restock(context, product),
+                          child: const Text('Restock'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

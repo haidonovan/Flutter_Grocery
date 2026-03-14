@@ -38,11 +38,6 @@ class CartPage extends StatelessWidget {
             itemBuilder: (context, index) {
               final item = items[index];
               return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                color: Colors.grey.shade100,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -74,9 +69,15 @@ class CartPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '\$${item.product.price.toStringAsFixed(2)} each',
+                              item.product.discountPercent > 0
+                                  ? '\$${item.product.discountedPrice.toStringAsFixed(2)} each (was \$${item.product.price.toStringAsFixed(2)})'
+                                  : '\$${item.product.price.toStringAsFixed(2)} each',
                               style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: Colors.grey.shade700),
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -122,7 +123,7 @@ class CartPage extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.06),

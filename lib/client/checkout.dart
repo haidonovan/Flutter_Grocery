@@ -4,10 +4,12 @@ class CheckoutRequest {
   const CheckoutRequest({
     required this.shippingAddress,
     required this.paymentMethod,
+    required this.couponCode,
   });
 
   final String shippingAddress;
   final String paymentMethod;
+  final String? couponCode;
 }
 
 class CheckoutPage extends StatefulWidget {
@@ -27,11 +29,13 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
   final _addressController = TextEditingController();
+  final _couponController = TextEditingController();
   String _paymentMethod = 'Cash on delivery';
 
   @override
   void dispose() {
     _addressController.dispose();
+    _couponController.dispose();
     super.dispose();
   }
 
@@ -41,6 +45,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
         CheckoutRequest(
           shippingAddress: _addressController.text.trim(),
           paymentMethod: _paymentMethod,
+          couponCode: _couponController.text.trim().isEmpty
+              ? null
+              : _couponController.text.trim(),
         ),
       );
     }
@@ -56,8 +63,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
           padding: const EdgeInsets.all(16),
           children: [
             Card(
-              elevation: 0,
-              color: Colors.grey.shade100,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -109,6 +114,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Coupon code',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _couponController,
+              decoration: const InputDecoration(
+                labelText: 'Enter coupon (optional)',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             Text(

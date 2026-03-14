@@ -11,6 +11,9 @@ class ProductFormData {
     required this.category,
     required this.description,
     required this.price,
+    required this.discountPercent,
+    required this.discountStart,
+    required this.discountEnd,
     required this.stock,
     required this.imageUrl,
   });
@@ -19,6 +22,9 @@ class ProductFormData {
   final String category;
   final String description;
   final double price;
+  final double discountPercent;
+  final DateTime? discountStart;
+  final DateTime? discountEnd;
   final int stock;
   final String imageUrl;
 }
@@ -27,11 +33,13 @@ class AddProductPage extends StatefulWidget {
   const AddProductPage({
     super.key,
     required this.onUploadImage,
+    required this.categories,
     this.initialProduct,
   });
 
   final Product? initialProduct;
   final Future<String?> Function(XFile file) onUploadImage;
+  final List<String> categories;
 
   @override
   State<AddProductPage> createState() => _AddProductPageState();
@@ -42,10 +50,14 @@ class _AddProductPageState extends State<AddProductPage> {
   final _picker = ImagePicker();
   late final TextEditingController _nameController;
   late final TextEditingController _categoryController;
+  late final FocusNode _categoryFocusNode;
   late final TextEditingController _descriptionController;
   late final TextEditingController _priceController;
+  late final TextEditingController _discountController;
   late final TextEditingController _stockController;
   late final TextEditingController _imageUrlController;
+  DateTime? _discountStart;
+  DateTime? _discountEnd;
 
   Uint8List? _previewBytes;
   bool _uploading = false;
@@ -56,12 +68,19 @@ class _AddProductPageState extends State<AddProductPage> {
     final product = widget.initialProduct;
     _nameController = TextEditingController(text: product?.name ?? '');
     _categoryController = TextEditingController(text: product?.category ?? '');
+    _categoryFocusNode = FocusNode();
     _descriptionController = TextEditingController(
       text: product?.description ?? '',
     );
     _priceController = TextEditingController(
       text: product == null ? '' : product.price.toStringAsFixed(2),
     );
+    _discountController = TextEditingController(
+      text:
+          product == null ? '0' : product.discountPercent.toStringAsFixed(0),
+    );
+    _discountStart = product?.discountStart;
+    _discountEnd = product?.discountEnd;
     _stockController = TextEditingController(
       text: product?.stock.toString() ?? '',
     );
@@ -72,8 +91,10 @@ class _AddProductPageState extends State<AddProductPage> {
   void dispose() {
     _nameController.dispose();
     _categoryController.dispose();
+    _categoryFocusNode.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _discountController.dispose();
     _stockController.dispose();
     _imageUrlController.dispose();
     super.dispose();
@@ -133,10 +154,43 @@ class _AddProductPageState extends State<AddProductPage> {
         category: _categoryController.text.trim(),
         description: _descriptionController.text.trim(),
         price: double.parse(_priceController.text.trim()),
+        discountPercent: double.parse(_discountController.text.trim()),
+        discountStart: _discountStart,
+        discountEnd: _discountEnd,
         stock: int.parse(_stockController.text.trim()),
         imageUrl: _imageUrlController.text.trim(),
       ),
     );
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final now = DateTime.now();
+    final initial = isStart ? _discountStart ?? now : _discountEnd ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 3),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _discountStart = picked;
+        } else {
+          _discountEnd = picked;
+        }
+      });
+    }
+  }
+
+  void _clearDate(bool isStart) {
+    setState(() {
+      if (isStart) {
+        _discountStart = null;
+      } else {
+        _discountEnd = null;
+      }
+    });
   }
 
   @override
@@ -206,17 +260,59 @@ class _AddProductPageState extends State<AddProductPage> {
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _categoryController,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if ((value ?? '').trim().isEmpty) {
-                  return 'Enter category';
+            RawAutocomplete<String>(
+              textEditingController: _categoryController,
+              focusNode: _categoryFocusNode,
+              optionsBuilder: (value) {
+                final query = value.text.trim().toLowerCase();
+                if (query.isEmpty) {
+                  return widget.categories;
                 }
-                return null;
+                return widget.categories.where(
+                  (category) => category.toLowerCase().contains(query),
+                );
+              },
+              onSelected: (value) {
+                _categoryController.text = value;
+              },
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                return TextFormField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: const InputDecoration(
+                    labelText: 'Category (pick or type new)',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if ((value ?? '').trim().isEmpty) {
+                      return 'Enter category';
+                    }
+                    return null;
+                  },
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(12),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: options.length,
+                        itemBuilder: (context, index) {
+                          final option = options.elementAt(index);
+                          return ListTile(
+                            title: Text(option),
+                            onTap: () => onSelected(option),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 12),
@@ -259,6 +355,26 @@ class _AddProductPageState extends State<AddProductPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
+                    controller: _discountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Discount %',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final parsed = double.tryParse((value ?? '').trim());
+                      if (parsed == null || parsed < 0 || parsed > 90) {
+                        return '0 - 90';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
                     controller: _stockController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
@@ -273,6 +389,48 @@ class _AddProductPageState extends State<AddProductPage> {
                       return null;
                     },
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickDate(isStart: true),
+                    icon: const Icon(Icons.calendar_today),
+                    label: Text(
+                      _discountStart == null
+                          ? 'Discount start'
+                          : 'Start: ${_discountStart!.toLocal().toString().split(' ').first}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: () => _clearDate(true),
+                  child: const Text('Clear'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickDate(isStart: false),
+                    icon: const Icon(Icons.event),
+                    label: Text(
+                      _discountEnd == null
+                          ? 'Discount end'
+                          : 'End: ${_discountEnd!.toLocal().toString().split(' ').first}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: () => _clearDate(false),
+                  child: const Text('Clear'),
                 ),
               ],
             ),

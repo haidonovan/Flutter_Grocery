@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 import 'models.dart';
+import '../widgets/skeleton.dart';
 
 class OrderHistoryPage extends StatelessWidget {
-  const OrderHistoryPage({super.key, required this.orders});
+  const OrderHistoryPage({
+    super.key,
+    required this.orders,
+    required this.isLoading,
+  });
 
   final List<OrderRecord> orders;
+  final bool isLoading;
 
   String _formatDate(DateTime value) {
     final months = <String>[
@@ -61,6 +67,16 @@ class OrderHistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (orders.isEmpty) {
+      if (isLoading) {
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: 4,
+          itemBuilder: (context, index) => const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: SkeletonBox(height: 110),
+          ),
+        );
+      }
       return const Center(
         child: Text('No orders yet. Completed orders will show here.'),
       );
@@ -74,17 +90,30 @@ class OrderHistoryPage extends StatelessWidget {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
-            title: Text('Order ${order.id}'),
-            subtitle: Text(
-              '${_formatDate(order.createdAt)} - ${_statusText(order.status)}',
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Order ${order.id}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '\$${order.total.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ],
             ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '\$${order.total.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  '${_formatDate(order.createdAt)} - ${_statusText(order.status)}',
                 ),
                 const SizedBox(height: 4),
                 Container(
@@ -112,11 +141,43 @@ class OrderHistoryPage extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text('Payment: ${order.paymentMethod}'),
               ),
+              if (order.couponCode != null && order.couponDiscount != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Coupon ${order.couponCode}: -\$${order.couponDiscount!.toStringAsFixed(2)}',
+                    ),
+                  ),
+                ),
               const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Address: ${order.shippingAddress}'),
               ),
+              if (order.trackingNumber != null ||
+                  order.trackingCarrier != null ||
+                  order.trackingStatus != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tracking: ${order.trackingCarrier ?? 'Carrier'}',
+                      ),
+                  if (order.trackingNumber != null)
+                        Text('Number: ${order.trackingNumber}'),
+                  if (order.trackingStatus != null)
+                        Text('Status: ${order.trackingStatus}'),
+                      if (order.trackingUpdatedAt != null)
+                        Text(
+                          'Updated: ${_formatDate(order.trackingUpdatedAt!)}',
+                        ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 10),
               const Divider(height: 1),
               const SizedBox(height: 10),
@@ -126,7 +187,24 @@ class OrderHistoryPage extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text('${line.productName} x${line.quantity}'),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${line.productName} x${line.quantity}'),
+                            if (line.discountPercent > 0)
+                              Text(
+                                'Discount ${line.discountPercent.toStringAsFixed(0)}%',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                          ],
+                        ),
                       ),
                       Text('\$${line.subtotal.toStringAsFixed(2)}'),
                     ],

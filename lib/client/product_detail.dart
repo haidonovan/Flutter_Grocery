@@ -8,11 +8,17 @@ class ProductDetailPage extends StatelessWidget {
     required this.product,
     required this.cartQuantity,
     required this.onAddToCart,
+    required this.isFavorite,
+    required this.onToggleFavorite,
+    required this.onRate,
   });
 
   final Product product;
   final int cartQuantity;
   final VoidCallback onAddToCart;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
+  final void Function(int rating) onRate;
 
   @override
   Widget build(BuildContext context) {
@@ -78,17 +84,70 @@ class ProductDetailPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Row(
+                        children: List.generate(
+                          5,
+                          (index) => Icon(
+                            index < product.ratingAvg.round()
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('(${product.ratingCount})'),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: onToggleFavorite,
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                        ),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: List.generate(
+                      5,
+                      (index) => OutlinedButton(
+                        onPressed: () => onRate(index + 1),
+                        child: Text('${index + 1}★'),
+                      ),
+                    ),
+                  ),
                   Text(
                     product.name,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '\$${product.price.toStringAsFixed(2)}',
+                    product.isDiscountActive
+                        ? 'Now \$${product.discountedPrice.toStringAsFixed(2)}'
+                        : '\$${product.price.toStringAsFixed(2)}',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
+                  if (product.isDiscountActive)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Was \$${product.price.toStringAsFixed(2)} • Save ${product.effectiveDiscountPercent.toStringAsFixed(0)}%',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   Text(
                     product.description,
@@ -99,7 +158,7 @@ class ProductDetailPage extends StatelessWidget {
                   const SizedBox(height: 24),
                   Card(
                     elevation: 0,
-                    color: Colors.grey.shade100,
+                    color: Theme.of(context).colorScheme.surface,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -127,7 +186,7 @@ class ProductDetailPage extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -145,7 +204,7 @@ class ProductDetailPage extends StatelessWidget {
                   children: [
                     const Text('Total'),
                     Text(
-                      '\$${product.price.toStringAsFixed(2)}',
+                      '\$${product.discountedPrice.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ],
