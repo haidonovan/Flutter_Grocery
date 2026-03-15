@@ -78,8 +78,7 @@ class Product {
   double get effectiveDiscountPercent =>
       isDiscountActive ? discountPercent.clamp(0, 100) : 0;
 
-  double get discountedPrice =>
-      price * (1 - (effectiveDiscountPercent / 100));
+  double get discountedPrice => price * (1 - (effectiveDiscountPercent / 100));
 }
 
 class CartItem {
@@ -211,20 +210,70 @@ class Coupon {
   final String? userEmail;
 }
 
-class SupportMessage {
-  const SupportMessage({
+class SupportTicket {
+  const SupportTicket({
     required this.id,
     required this.userEmail,
+    required this.subject,
     required this.message,
-    required this.isResolved,
+    required this.status,
     required this.createdAt,
+    required this.adminReply,
+    required this.repliedAt,
+    required this.closedAt,
+    this.messages = const [],
   });
 
   final int id;
   final String userEmail;
+  final String subject;
   final String message;
-  final bool isResolved;
+  final String status;
   final DateTime createdAt;
+  final String? adminReply;
+  final DateTime? repliedAt;
+  final DateTime? closedAt;
+  final List<SupportTicketMessage> messages;
+}
+
+class SupportTicketMessage {
+  const SupportTicketMessage({
+    required this.id,
+    required this.userId,
+    required this.userEmail,
+    required this.userRole,
+    required this.message,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int userId;
+  final String userEmail;
+  final String userRole;
+  final String message;
+  final DateTime createdAt;
+}
+
+class ProductComment {
+  const ProductComment({
+    required this.id,
+    required this.productId,
+    required this.userId,
+    required this.userEmail,
+    required this.message,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final int id;
+  final String productId;
+  final int userId;
+  final String userEmail;
+  final String message;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  bool get isEdited => updatedAt.isAfter(createdAt);
 }
 
 class RestockRecord {

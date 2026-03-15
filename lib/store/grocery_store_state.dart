@@ -42,6 +42,7 @@ class GroceryStoreState extends ChangeNotifier {
     final client = ApiClient(baseUrl: baseUrl);
     final store = GroceryStoreState._(client);
     await store._restoreSession();
+    await store._validateRestoredSession();
     await store.refreshAll();
     store._isInitializing = false;
     store.notifyListeners();
@@ -57,8 +58,10 @@ class GroceryStoreState extends ChangeNotifier {
   final List<RestockRecord> _restockHistory = [];
   final List<Coupon> _coupons = [];
   final List<Coupon> _activeCoupons = [];
-  final List<SupportMessage> _supportMessages = [];
+  final List<SupportTicket> _supportTickets = [];
+  final List<SupportTicket> _mySupportTickets = [];
   final Set<String> _favoriteProductIds = {};
+  final Map<String, List<ProductComment>> _commentsByProduct = {};
 
   bool _isLoading = false;
   bool _isInitializing = true;
@@ -95,9 +98,12 @@ class GroceryStoreState extends ChangeNotifier {
   List<RestockRecord> get restockHistory => List.unmodifiable(_restockHistory);
   List<Coupon> get coupons => List.unmodifiable(_coupons);
   List<Coupon> get activeCoupons => List.unmodifiable(_activeCoupons);
-  List<SupportMessage> get supportMessages =>
-      List.unmodifiable(_supportMessages);
+  List<SupportTicket> get supportTickets => List.unmodifiable(_supportTickets);
+  List<SupportTicket> get mySupportTickets =>
+      List.unmodifiable(_mySupportTickets);
   bool isFavorite(String productId) => _favoriteProductIds.contains(productId);
+  List<ProductComment> commentsFor(String productId) =>
+      List.unmodifiable(_commentsByProduct[productId] ?? []);
 
   List<CartViewItem> get cartItems {
     final result = <CartViewItem>[];
@@ -281,6 +287,11 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _resetSession();
+    notifyListeners();
+  }
+
+  Future<void> _resetSession() async {
     _token = null;
     _userId = null;
     _userEmail = null;
@@ -290,20 +301,31 @@ class GroceryStoreState extends ChangeNotifier {
     _products.clear();
     _orders.clear();
     _restockHistory.clear();
+    _coupons.clear();
+    _activeCoupons.clear();
+    _supportTickets.clear();
+    _mySupportTickets.clear();
+    _favoriteProductIds.clear();
+    _commentsByProduct.clear();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userIdKey);
     await prefs.remove(_userEmailKey);
     await prefs.remove(_userRoleKey);
-
-    notifyListeners();
   }
 
   Future<void> refreshAll() async {
     if (!isAuthenticated) {
+      _orders.clear();
+      _restockHistory.clear();
+      _coupons.clear();
+      _supportTickets.clear();
+      _mySupportTickets.clear();
+      _favoriteProductIds.clear();
       await _loadProducts(includeInactive: false);
       await _loadCategories();
+      await _loadActiveCoupons();
       return;
     }
 
@@ -313,10 +335,11 @@ class GroceryStoreState extends ChangeNotifier {
     if (isAdmin) {
       await _loadRestocks();
       await _loadCoupons();
-      await _loadSupportMessages();
+      await _loadSupportTickets();
     } else {
       await _loadFavorites();
       await _loadActiveCoupons();
+      await _loadMySupportTickets();
     }
   }
 
@@ -519,10 +542,7 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<void> toggleFavorite(String productId) async {
-    final response = await _apiClient.postJson(
-      '/api/favorites/$productId',
-      {},
-    );
+    final response = await _apiClient.postJson('/api/favorites/$productId', {});
     final isFavorite = response['isFavorite'] == true;
     if (isFavorite) {
       _favoriteProductIds.add(productId);
@@ -533,10 +553,9 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<void> submitRating(String productId, int rating) async {
-    final response = await _apiClient.postJson(
-      '/api/ratings/$productId',
-      {'rating': rating},
-    );
+    final response = await _apiClient.postJson('/api/ratings/$productId', {
+      'rating': rating,
+    });
     final avg = (response['ratingAvg'] as num?)?.toDouble();
     final count = (response['ratingCount'] as num?)?.toInt();
     if (avg != null && count != null) {
@@ -552,29 +571,50 @@ class GroceryStoreState extends ChangeNotifier {
     }
   }
 
-  Future<void> submitSupportMessage(String message) async {
-    await _apiClient.postJson('/api/support', {'message': message});
+  Future<void> submitSupportTicket(String subject, String message) async {
+    await _apiClient.postJson('/api/support', {
+      'subject': subject,
+      'message': message,
+    });
+    await _loadMySupportTickets();
   }
 
-  Future<void> _loadSupportMessages() async {
+  Future<void> sendSupportThreadMessage(int ticketId, String message) async {
+    await _apiClient.postJson('/api/support/$ticketId/messages', {
+      'message': message,
+    });
+    if (isAdmin) {
+      await _loadSupportTickets();
+    } else {
+      await _loadMySupportTickets();
+    }
+  }
+
+  Future<void> _loadSupportTickets() async {
     try {
       final response = await _apiClient.getJson('/api/support');
       final data = response['data'] as List<dynamic>? ?? [];
-      _supportMessages
+      _supportTickets
         ..clear()
         ..addAll(
           data.map((raw) {
             final map = raw as Map<String, dynamic>;
-            return SupportMessage(
+            return SupportTicket(
               id: (map['id'] as num?)?.toInt() ?? 0,
+              subject: map['subject']?.toString() ?? '',
               message: map['message']?.toString() ?? '',
-              isResolved: map['isResolved'] == true,
+              status: map['status']?.toString() ?? 'open',
               createdAt:
                   DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
                   DateTime.now(),
+              adminReply: map['adminReply']?.toString(),
+              repliedAt: DateTime.tryParse(map['repliedAt']?.toString() ?? ''),
+              closedAt: DateTime.tryParse(map['closedAt']?.toString() ?? ''),
               userEmail:
-                  (map['user'] as Map<String, dynamic>?)?['email']?.toString() ??
-                      '',
+                  (map['user'] as Map<String, dynamic>?)?['email']
+                      ?.toString() ??
+                  '',
+              messages: _supportMessagesFromApi(map['messages']),
             );
           }),
         );
@@ -584,11 +624,53 @@ class GroceryStoreState extends ChangeNotifier {
     }
   }
 
-  Future<void> resolveSupportMessage(int id, bool isResolved) async {
-    await _apiClient.patchJson('/api/support/$id', {
-      'isResolved': isResolved,
-    });
-    await _loadSupportMessages();
+  Future<void> _loadMySupportTickets() async {
+    if (!isAuthenticated) {
+      _mySupportTickets.clear();
+      return;
+    }
+    try {
+      final response = await _apiClient.getJson('/api/support/me');
+      final data = response['data'] as List<dynamic>? ?? [];
+      _mySupportTickets
+        ..clear()
+        ..addAll(
+          data.map((raw) {
+            final map = raw as Map<String, dynamic>;
+            return SupportTicket(
+              id: (map['id'] as num?)?.toInt() ?? 0,
+              subject: map['subject']?.toString() ?? '',
+              message: map['message']?.toString() ?? '',
+              status: map['status']?.toString() ?? 'open',
+              createdAt:
+                  DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
+                  DateTime.now(),
+              adminReply: map['adminReply']?.toString(),
+              repliedAt: DateTime.tryParse(map['repliedAt']?.toString() ?? ''),
+              closedAt: DateTime.tryParse(map['closedAt']?.toString() ?? ''),
+              userEmail: _userEmail ?? '',
+              messages: _supportMessagesFromApi(map['messages']),
+            );
+          }),
+        );
+      notifyListeners();
+    } catch (_) {
+      // ignore support load failures
+    }
+  }
+
+  Future<void> replySupportTicket(int id, String reply) async {
+    await _apiClient.patchJson('/api/support/$id/reply', {'reply': reply});
+    await _loadSupportTickets();
+  }
+
+  Future<void> closeSupportTicket(int id) async {
+    await _apiClient.patchJson('/api/support/$id/close', {});
+    if (isAdmin) {
+      await _loadSupportTickets();
+    } else {
+      await _loadMySupportTickets();
+    }
   }
 
   Future<PlaceOrderResult> placeOrder({
@@ -658,6 +740,34 @@ class GroceryStoreState extends ChangeNotifier {
     await refreshAll();
   }
 
+  Future<AuthResult> importProductsCsv(String csv) async {
+    if (!isAdmin) {
+      return const AuthResult(
+        success: false,
+        message: 'Admin access required.',
+      );
+    }
+
+    try {
+      final response = await _apiClient.postJson('/api/products/import', {
+        'csv': csv,
+      });
+      await refreshAll();
+      final importedCount = (response['importedCount'] as num?)?.toInt() ?? 0;
+      return AuthResult(
+        success: true,
+        message: 'Imported $importedCount products.',
+      );
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return const AuthResult(
+        success: false,
+        message: 'Failed to import products.',
+      );
+    }
+  }
+
   Future<void> updateProduct(Product updated) async {
     await _apiClient.putJson('/api/products/${updated.id}', {
       'name': updated.name,
@@ -702,6 +812,96 @@ class GroceryStoreState extends ChangeNotifier {
       'status': nextStatus.name,
     });
     await refreshAll();
+  }
+
+  Future<void> loadComments(String productId) async {
+    try {
+      final response = await _apiClient.getJson(
+        '/api/comments',
+        query: {'productId': productId},
+      );
+      final data = response['data'] as List<dynamic>? ?? [];
+      _commentsByProduct[productId] = data
+          .map(_commentFromApi)
+          .toList(growable: false);
+      notifyListeners();
+    } on ApiException catch (err) {
+      _setError(err.message);
+    } catch (_) {
+      _setError('Unable to load comments.');
+    }
+  }
+
+  Future<AuthResult> addComment(String productId, String message) async {
+    if (!isAuthenticated) {
+      return const AuthResult(
+        success: false,
+        message: 'Login required to comment.',
+      );
+    }
+    try {
+      await _apiClient.postJson('/api/comments', {
+        'productId': productId,
+        'message': message,
+      });
+      await loadComments(productId);
+      return const AuthResult(success: true);
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return const AuthResult(
+        success: false,
+        message: 'Failed to add comment.',
+      );
+    }
+  }
+
+  Future<AuthResult> updateComment(
+    String productId,
+    int commentId,
+    String message,
+  ) async {
+    if (!isAuthenticated) {
+      return const AuthResult(
+        success: false,
+        message: 'Login required to edit comments.',
+      );
+    }
+    try {
+      await _apiClient.patchJson('/api/comments/$commentId', {
+        'message': message,
+      });
+      await loadComments(productId);
+      return const AuthResult(success: true);
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return const AuthResult(
+        success: false,
+        message: 'Failed to update comment.',
+      );
+    }
+  }
+
+  Future<AuthResult> deleteComment(String productId, int commentId) async {
+    if (!isAuthenticated) {
+      return const AuthResult(
+        success: false,
+        message: 'Login required to delete comments.',
+      );
+    }
+    try {
+      await _apiClient.delete('/api/comments/$commentId');
+      await loadComments(productId);
+      return const AuthResult(success: true);
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return const AuthResult(
+        success: false,
+        message: 'Failed to delete comment.',
+      );
+    }
   }
 
   Future<void> updateOrderTracking({
@@ -802,9 +1002,7 @@ class GroceryStoreState extends ChangeNotifier {
       description: data['description']?.toString() ?? '',
       price: (data['price'] as num?)?.toDouble() ?? 0,
       discountPercent: (data['discountPercent'] as num?)?.toDouble() ?? 0,
-      discountStart: DateTime.tryParse(
-        data['discountStart']?.toString() ?? '',
-      ),
+      discountStart: DateTime.tryParse(data['discountStart']?.toString() ?? ''),
       discountEnd: DateTime.tryParse(data['discountEnd']?.toString() ?? ''),
       ratingAvg: (data['ratingAvg'] as num?)?.toDouble() ?? 0,
       ratingCount: (data['ratingCount'] as num?)?.toInt() ?? 0,
@@ -858,6 +1056,46 @@ class GroceryStoreState extends ChangeNotifier {
     );
   }
 
+  ProductComment _commentFromApi(dynamic raw) {
+    final data = raw as Map<String, dynamic>;
+    return ProductComment(
+      id: (data['id'] as num?)?.toInt() ?? 0,
+      productId: data['productId']?.toString() ?? '',
+      userId: (data['userId'] as num?)?.toInt() ?? 0,
+      userEmail: data['userEmail']?.toString() ?? '',
+      message: data['message']?.toString() ?? '',
+      createdAt:
+          DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(data['updatedAt']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  List<SupportTicketMessage> _supportMessagesFromApi(dynamic raw) {
+    final list = raw as List<dynamic>?;
+    if (list == null) {
+      return const [];
+    }
+    return list
+        .map((entry) {
+          final data = entry as Map<String, dynamic>;
+          final user = data['user'] as Map<String, dynamic>?;
+          return SupportTicketMessage(
+            id: (data['id'] as num?)?.toInt() ?? 0,
+            userId: (data['userId'] as num?)?.toInt() ?? 0,
+            userEmail: user?['email']?.toString() ?? '',
+            userRole: user?['role']?.toString() ?? 'client',
+            message: data['message']?.toString() ?? '',
+            createdAt:
+                DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
+                DateTime.now(),
+          );
+        })
+        .toList(growable: false);
+  }
+
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_tokenKey);
@@ -865,6 +1103,37 @@ class GroceryStoreState extends ChangeNotifier {
     _userEmail = prefs.getString(_userEmailKey);
     _role = prefs.getString(_userRoleKey);
     _apiClient.token = _token;
+  }
+
+  Future<void> _validateRestoredSession() async {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      final response = await _apiClient.getJson('/api/auth/me');
+      final user = response['user'] as Map<String, dynamic>?;
+      if (user == null) {
+        await _resetSession();
+        return;
+      }
+
+      _userId = (user['id'] as num?)?.toInt() ?? _userId;
+      _userEmail = user['email']?.toString() ?? _userEmail;
+      _role = user['role']?.toString() ?? _role;
+      await _saveSession(
+        token: _token!,
+        userId: _userId ?? 0,
+        email: _userEmail ?? '',
+        role: _role ?? 'client',
+      );
+    } on ApiException catch (err) {
+      if (err.statusCode == 401 || err.statusCode == 404) {
+        await _resetSession();
+      }
+    } catch (_) {
+      // Keep the stored session on transient network failures.
+    }
   }
 
   Future<void> _saveSession({

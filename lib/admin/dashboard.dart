@@ -13,7 +13,7 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  _ChartRange _range = _ChartRange.sevenDays;
+  ChartRange _range = ChartRange.sevenDays;
   DateTime? _customStart;
   DateTime? _customEnd;
 
@@ -35,43 +35,60 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       setState(() {
         _customStart = picked.start;
         _customEnd = picked.end;
-        _range = _ChartRange.custom;
+        _range = ChartRange.custom;
       });
     }
   }
 
-  _RangeConfig _rangeConfig() {
+  RevenueRangeConfig _rangeConfig() {
     final now = DateTime.now();
     switch (_range) {
-      case _ChartRange.sevenDays:
-        return _RangeConfig(
-          start: DateTime(now.year, now.month, now.day)
-              .subtract(const Duration(days: 6)),
+      case ChartRange.sevenDays:
+        return RevenueRangeConfig(
+          start: DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 6)),
           end: DateTime(now.year, now.month, now.day),
           bucketDays: 1,
         );
-      case _ChartRange.month:
-        return _RangeConfig(
-          start: DateTime(now.year, now.month, now.day)
-              .subtract(const Duration(days: 29)),
+      case ChartRange.month:
+        return RevenueRangeConfig(
+          start: DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 29)),
           end: DateTime(now.year, now.month, now.day),
           bucketDays: 1,
         );
-      case _ChartRange.year:
-        return _RangeConfig(
-          start: DateTime(now.year, now.month, now.day)
-              .subtract(const Duration(days: 364)),
+      case ChartRange.year:
+        return RevenueRangeConfig(
+          start: DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 364)),
           end: DateTime(now.year, now.month, now.day),
           bucketDays: 30,
         );
-      case _ChartRange.custom:
-        final start = _customStart ??
-            DateTime(now.year, now.month, now.day)
-                .subtract(const Duration(days: 6));
+      case ChartRange.custom:
+        final start =
+            _customStart ??
+            DateTime(
+              now.year,
+              now.month,
+              now.day,
+            ).subtract(const Duration(days: 6));
         final end = _customEnd ?? DateTime(now.year, now.month, now.day);
         final diffDays = end.difference(start).inDays.abs() + 1;
         final bucketDays = diffDays > 60 ? 7 : 1;
-        return _RangeConfig(start: start, end: end, bucketDays: bucketDays);
+        return RevenueRangeConfig(
+          start: start,
+          end: end,
+          bucketDays: bucketDays,
+        );
     }
   }
 
@@ -86,6 +103,51 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }).toList();
   }
 
+  List<_DashboardAlert> _buildAlerts() {
+    final lowStock = widget.store.lowStockCount;
+    final openComplaints = widget.store.supportTickets
+        .where((ticket) => ticket.status != 'closed')
+        .length;
+    final pendingOrders = _pendingOrders;
+    final alerts = <_DashboardAlert>[];
+
+    if (openComplaints > 0) {
+      alerts.add(
+        _DashboardAlert(
+          title: 'Customer complaints',
+          message:
+              '$openComplaints active support ticket${openComplaints == 1 ? '' : 's'} need admin follow-up.',
+          icon: Icons.report_problem_outlined,
+          tone: _MetricTone.danger,
+        ),
+      );
+    }
+    if (lowStock > 0) {
+      alerts.add(
+        _DashboardAlert(
+          title: 'Low stock',
+          message:
+              '$lowStock product${lowStock == 1 ? '' : 's'} are close to running out.',
+          icon: Icons.inventory_2_outlined,
+          tone: lowStock >= 5 ? _MetricTone.danger : _MetricTone.warning,
+        ),
+      );
+    }
+    if (pendingOrders >= 8) {
+      alerts.add(
+        _DashboardAlert(
+          title: 'Pending orders',
+          message:
+              '$pendingOrders orders are still pending and should be reviewed.',
+          icon: Icons.timelapse_outlined,
+          tone: _MetricTone.warning,
+        ),
+      );
+    }
+
+    return alerts;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -93,6 +155,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       builder: (context, _) {
         final filtered = _filteredOrders(widget.store.allOrders);
         final range = _rangeConfig();
+        final activeComplaints = widget.store.supportTickets
+            .where((ticket) => ticket.status != 'closed')
+            .length;
+        final alerts = _buildAlerts();
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -105,37 +171,65 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   title: 'Products',
                   value: '${widget.store.allProducts.length}',
                   icon: Icons.shopping_bag,
+                  tone: _MetricTone.neutral,
                 ),
                 _MetricCard(
                   title: 'Total Stock',
                   value: '${widget.store.totalStockCount}',
                   icon: Icons.inventory_2,
+                  tone: _MetricTone.neutral,
                 ),
                 _MetricCard(
                   title: 'Low Stock',
                   value: '${widget.store.lowStockCount}',
                   icon: Icons.warning_amber_rounded,
+                  tone: widget.store.lowStockCount == 0
+                      ? _MetricTone.success
+                      : widget.store.lowStockCount >= 5
+                      ? _MetricTone.danger
+                      : _MetricTone.warning,
+                ),
+                _MetricCard(
+                  title: 'Complaints',
+                  value: '$activeComplaints',
+                  icon: Icons.report_problem_outlined,
+                  tone: activeComplaints == 0
+                      ? _MetricTone.success
+                      : _MetricTone.danger,
                 ),
                 _MetricCard(
                   title: 'Pending Orders',
                   value: '$_pendingOrders',
                   icon: Icons.timelapse,
+                  tone: _pendingOrders >= 8
+                      ? _MetricTone.warning
+                      : _MetricTone.neutral,
                 ),
                 _MetricCard(
                   title: 'Revenue',
                   value: '\$${widget.store.revenueTotal.toStringAsFixed(2)}',
                   icon: Icons.attach_money,
+                  tone: _MetricTone.success,
                 ),
               ],
             ),
+            if (alerts.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Active alerts',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              ...alerts.map((alert) => _AlertCard(alert: alert)),
+            ],
             const SizedBox(height: 20),
-            _RangeSelector(
+            RangeSelector(
               selected: _range,
               onSelect: (next) {
                 setState(() {
                   _range = next;
                 });
-                if (next == _ChartRange.custom) {
+                if (next == ChartRange.custom) {
                   _pickCustomRange();
                 }
               },
@@ -211,20 +305,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       builder: (_) => Dialog.fullscreen(
         child: Scaffold(
           appBar: AppBar(title: Text(title)),
-          body: Padding(
-            padding: const EdgeInsets.all(16),
-            child: child,
-          ),
+          body: Padding(padding: const EdgeInsets.all(16), child: child),
         ),
       ),
     );
   }
 }
 
-enum _ChartRange { sevenDays, month, year, custom }
+enum ChartRange { sevenDays, month, year, custom }
 
-class _RangeConfig {
-  const _RangeConfig({
+class RevenueRangeConfig {
+  const RevenueRangeConfig({
     required this.start,
     required this.end,
     required this.bucketDays,
@@ -235,15 +326,16 @@ class _RangeConfig {
   final int bucketDays;
 }
 
-class _RangeSelector extends StatelessWidget {
-  const _RangeSelector({
+class RangeSelector extends StatelessWidget {
+  const RangeSelector({
+    super.key,
     required this.selected,
     required this.onSelect,
     required this.onPickCustom,
   });
 
-  final _ChartRange selected;
-  final ValueChanged<_ChartRange> onSelect;
+  final ChartRange selected;
+  final ValueChanged<ChartRange> onSelect;
   final VoidCallback onPickCustom;
 
   @override
@@ -254,22 +346,22 @@ class _RangeSelector extends StatelessWidget {
       children: [
         ChoiceChip(
           label: const Text('7 days'),
-          selected: selected == _ChartRange.sevenDays,
-          onSelected: (_) => onSelect(_ChartRange.sevenDays),
+          selected: selected == ChartRange.sevenDays,
+          onSelected: (_) => onSelect(ChartRange.sevenDays),
         ),
         ChoiceChip(
           label: const Text('1 month'),
-          selected: selected == _ChartRange.month,
-          onSelected: (_) => onSelect(_ChartRange.month),
+          selected: selected == ChartRange.month,
+          onSelected: (_) => onSelect(ChartRange.month),
         ),
         ChoiceChip(
           label: const Text('1 year'),
-          selected: selected == _ChartRange.year,
-          onSelected: (_) => onSelect(_ChartRange.year),
+          selected: selected == ChartRange.year,
+          onSelected: (_) => onSelect(ChartRange.year),
         ),
         ChoiceChip(
           label: const Text('Custom'),
-          selected: selected == _ChartRange.custom,
+          selected: selected == ChartRange.custom,
           onSelected: (_) => onPickCustom(),
         ),
       ],
@@ -315,34 +407,44 @@ class _ChartCard extends StatelessWidget {
   }
 }
 
-class RevenueChart extends StatelessWidget {
+class RevenueChart extends StatefulWidget {
   const RevenueChart({super.key, required this.orders, required this.range});
 
   final List<OrderRecord> orders;
-  final _RangeConfig range;
+  final RevenueRangeConfig range;
 
   @override
-  Widget build(BuildContext context) {
-    final data = _bucketedTotals(orders, range);
-    final maxValue = data.isEmpty
-        ? 1.0
-        : data.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    return CustomPaint(
-      painter: _LineChartPainter(
-        points: data.map((e) => e.value).toList(),
-        maxValue: maxValue == 0 ? 1 : maxValue,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      child: _AxisLabels(
-        dates: data.map((e) => e.label).toList(),
-        maxValue: maxValue == 0 ? 1 : maxValue,
-      ),
-    );
+  State<RevenueChart> createState() => _RevenueChartState();
+}
+
+class _RevenueChartState extends State<RevenueChart> {
+  int? _hoveredIndex;
+
+  String _moneyText(double value) => '\$${value.toStringAsFixed(2)}';
+
+  List<double> _moneyScale(double maxValue) {
+    const steps = 4;
+    return List.generate(steps + 1, (index) => maxValue * (1 - index / steps));
+  }
+
+  List<String?> _visibleDateLabels(List<String> labels, int maxLabels) {
+    if (labels.isEmpty) {
+      return const [];
+    }
+
+    final result = List<String?>.filled(labels.length, null);
+    final step = (labels.length / maxLabels).ceil().clamp(1, labels.length);
+    for (var i = 0; i < labels.length; i += 1) {
+      if (i == 0 || i == labels.length - 1 || i % step == 0) {
+        result[i] = labels[i];
+      }
+    }
+    return result;
   }
 
   List<_ChartPoint> _bucketedTotals(
     List<OrderRecord> orders,
-    _RangeConfig range,
+    RevenueRangeConfig range,
   ) {
     final totalDays = range.end.difference(range.start).inDays.abs() + 1;
     final bucketDays = range.bucketDays.clamp(1, totalDays);
@@ -350,7 +452,8 @@ class RevenueChart extends StatelessWidget {
     final totals = List<double>.filled(buckets, 0);
 
     for (final order in orders) {
-      final index = order.createdAt.difference(range.start).inDays ~/ bucketDays;
+      final index =
+          order.createdAt.difference(range.start).inDays ~/ bucketDays;
       if (index >= 0 && index < buckets) {
         totals[index] += order.total;
       }
@@ -361,6 +464,210 @@ class RevenueChart extends StatelessWidget {
       final label = '${labelDate.month}/${labelDate.day}';
       return _ChartPoint(label: label, value: totals[index]);
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _bucketedTotals(widget.orders, widget.range);
+    final maxValue = data.isEmpty
+        ? 1.0
+        : data.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+    final safeMax = maxValue == 0 ? 1.0 : maxValue;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final maxLabels = width.isFinite
+            ? (width / 56).floor().clamp(2, data.isEmpty ? 2 : data.length)
+            : data.length;
+        final visibleLabels = _visibleDateLabels(
+          data.map((e) => e.label).toList(),
+          maxLabels,
+        );
+        final moneyLabels = _moneyScale(safeMax);
+
+        return Column(
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: moneyLabels
+                          .map(
+                            (value) => Text(
+                              '\$${value.toStringAsFixed(0)}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, chartConstraints) {
+                        final chartWidth = chartConstraints.maxWidth;
+                        final chartHeight = chartConstraints.maxHeight;
+
+                        void updateHover(Offset localPosition) {
+                          if (data.isEmpty) {
+                            return;
+                          }
+                          final clampedX = localPosition.dx.clamp(
+                            0.0,
+                            chartWidth,
+                          );
+                          final index = data.length <= 1
+                              ? 0
+                              : ((clampedX / chartWidth) * (data.length - 1))
+                                    .round()
+                                    .clamp(0, data.length - 1);
+                          if (_hoveredIndex != index) {
+                            setState(() => _hoveredIndex = index);
+                          }
+                        }
+
+                        final hoveredPoint =
+                            _hoveredIndex != null &&
+                                _hoveredIndex! < data.length
+                            ? data[_hoveredIndex!]
+                            : null;
+                        final hoveredX =
+                            _hoveredIndex == null || data.length <= 1
+                            ? 0.0
+                            : (chartWidth / (data.length - 1)) * _hoveredIndex!;
+                        final hoveredY = hoveredPoint == null
+                            ? 0.0
+                            : chartHeight -
+                                  (hoveredPoint.value / safeMax) * chartHeight;
+
+                        return MouseRegion(
+                          onExit: (_) => setState(() => _hoveredIndex = null),
+                          onHover: (event) => updateHover(event.localPosition),
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTapDown: (details) =>
+                                updateHover(details.localPosition),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CustomPaint(
+                                  painter: _LineChartPainter(
+                                    points: data.map((e) => e.value).toList(),
+                                    maxValue: safeMax,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    highlightedIndex: _hoveredIndex,
+                                  ),
+                                  child: const SizedBox.expand(),
+                                ),
+                                if (hoveredPoint != null)
+                                  Positioned(
+                                    left: (hoveredX - 56).clamp(
+                                      0.0,
+                                      chartWidth - 112,
+                                    ),
+                                    top: (hoveredY - 54).clamp(
+                                      0.0,
+                                      chartHeight - 34,
+                                    ),
+                                    child: Container(
+                                      width: 112,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.outlineVariant,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.12,
+                                            ),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 6),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            hoveredPoint.label,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _moneyText(hoveredPoint.value),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const SizedBox(width: 64),
+                Expanded(
+                  child: Row(
+                    children: visibleLabels
+                        .map(
+                          (label) => Expanded(
+                            child: Text(
+                              label ?? '',
+                              textAlign: label == visibleLabels.first
+                                  ? TextAlign.left
+                                  : label == visibleLabels.last
+                                  ? TextAlign.right
+                                  : TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -405,7 +712,9 @@ class TopProductsChart extends StatelessWidget {
                 Container(
                   height: 14,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -422,7 +731,10 @@ class TopProductsChart extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 2),
-            Text('${item.value} sold', style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              '${item.value} sold',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
         );
       },
@@ -435,27 +747,50 @@ class _MetricCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
+    required this.tone,
   });
 
   final String title;
   final String value;
   final IconData icon;
+  final _MetricTone tone;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    final (background, foreground) = switch (tone) {
+      _MetricTone.success => (
+        scheme.secondaryContainer,
+        scheme.onSecondaryContainer,
+      ),
+      _MetricTone.warning => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+      ),
+      _MetricTone.danger => (scheme.errorContainer, scheme.onErrorContainer),
+      _MetricTone.neutral => (scheme.surfaceContainerHighest, scheme.onSurface),
+    };
+
     return SizedBox(
       width: 170,
       child: Card(
+        color: background,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon),
+              Icon(icon, color: foreground),
               const SizedBox(height: 10),
-              Text(title),
+              Text(title, style: TextStyle(color: foreground)),
               const SizedBox(height: 6),
-              Text(value, style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                value,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: foreground),
+              ),
             ],
           ),
         ),
@@ -464,48 +799,97 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _AxisLabels extends StatelessWidget {
-  const _AxisLabels({required this.dates, required this.maxValue});
+enum _MetricTone { neutral, success, warning, danger }
 
-  final List<String> dates;
-  final double maxValue;
+class _DashboardAlert {
+  const _DashboardAlert({
+    required this.title,
+    required this.message,
+    required this.icon,
+    required this.tone,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+  final _MetricTone tone;
+}
+
+class _AlertCard extends StatelessWidget {
+  const _AlertCard({required this.alert});
+
+  final _DashboardAlert alert;
 
   @override
   Widget build(BuildContext context) {
-    final steps = 4;
-    return Padding(
-      padding: const EdgeInsets.only(left: 36, right: 8, bottom: 12, top: 8),
-      child: Stack(
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(
-              steps + 1,
-              (index) {
-                final value = maxValue * (1 - index / steps);
-                return Text(
-                  '\$${value.toStringAsFixed(0)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                );
-              },
+    final scheme = Theme.of(context).colorScheme;
+
+    final (background, foreground, border) = switch (alert.tone) {
+      _MetricTone.success => (
+        scheme.secondaryContainer.withValues(alpha: 0.8),
+        scheme.onSecondaryContainer,
+        scheme.secondary.withValues(alpha: 0.3),
+      ),
+      _MetricTone.warning => (
+        scheme.tertiaryContainer.withValues(alpha: 0.72),
+        scheme.onTertiaryContainer,
+        scheme.tertiary.withValues(alpha: 0.35),
+      ),
+      _MetricTone.danger => (
+        scheme.errorContainer.withValues(alpha: 0.72),
+        scheme.onErrorContainer,
+        scheme.error.withValues(alpha: 0.35),
+      ),
+      _MetricTone.neutral => (
+        scheme.surfaceContainerHighest.withValues(alpha: 0.72),
+        scheme.onSurface,
+        scheme.outlineVariant.withValues(alpha: 0.35),
+      ),
+    };
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      color: background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: foreground.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(alert.icon, color: foreground),
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: dates
-                  .map(
-                    (label) => Text(
-                      label,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  )
-                  .toList(),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    alert.title,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleSmall?.copyWith(color: foreground),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    alert.message,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: foreground),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -516,21 +900,17 @@ class _LineChartPainter extends CustomPainter {
     required this.points,
     required this.maxValue,
     required this.color,
+    this.highlightedIndex,
   });
 
   final List<double> points;
   final double maxValue;
   final Color color;
+  final int? highlightedIndex;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final chartPadding = const EdgeInsets.fromLTRB(36, 12, 8, 24);
-    final rect = Rect.fromLTWH(
-      chartPadding.left,
-      chartPadding.top,
-      size.width - chartPadding.left - chartPadding.right,
-      size.height - chartPadding.top - chartPadding.bottom,
-    );
+    final rect = Offset.zero & size;
     final safeMax = maxValue <= 0 ? 1 : maxValue;
 
     final axisPaint = Paint()
@@ -542,6 +922,10 @@ class _LineChartPainter extends CustomPainter {
       Offset(rect.left, rect.bottom),
       axisPaint,
     );
+    for (var i = 1; i <= 3; i += 1) {
+      final y = rect.top + (rect.height / 4) * i;
+      canvas.drawLine(Offset(rect.left, y), Offset(rect.right, y), axisPaint);
+    }
     canvas.drawLine(
       Offset(rect.left, rect.bottom),
       Offset(rect.right, rect.bottom),
@@ -585,12 +969,33 @@ class _LineChartPainter extends CustomPainter {
         final x = rect.left + (rect.width / (points.length - 1)) * i;
         final y = rect.bottom - (points[i] / safeMax) * rect.height;
         canvas.drawCircle(Offset(x, y), 3.5, pointPaint);
+        if (highlightedIndex == i) {
+          canvas.drawCircle(
+            Offset(x, y),
+            7,
+            Paint()
+              ..color = color.withValues(alpha: 0.16)
+              ..style = PaintingStyle.fill,
+          );
+          canvas.drawCircle(Offset(x, y), 4.5, Paint()..color = color);
+          canvas.drawLine(
+            Offset(x, rect.top),
+            Offset(x, rect.bottom),
+            Paint()
+              ..color = color.withValues(alpha: 0.18)
+              ..strokeWidth = 1,
+          );
+        }
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _LineChartPainter oldDelegate) =>
+      oldDelegate.points != points ||
+      oldDelegate.maxValue != maxValue ||
+      oldDelegate.color != color ||
+      oldDelegate.highlightedIndex != highlightedIndex;
 }
 
 class _ChartPoint {

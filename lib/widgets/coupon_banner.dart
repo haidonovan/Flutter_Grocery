@@ -175,19 +175,13 @@ class CouponBanner extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     'Valid Until: $endLabel',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: Colors.white70,
-                                        ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: Colors.white70),
                                   ),
                                 ),
                                 Text(
                                   coupon.code,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                                  style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w700,
@@ -241,10 +235,7 @@ class _Cutout extends StatelessWidget {
     return Container(
       width: 24,
       height: 24,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

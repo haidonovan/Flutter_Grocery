@@ -192,13 +192,8 @@ class _AuthGateState extends State<AuthGate> {
                                 ),
                               );
                             },
-                            isFavorite: false,
-                            onToggleFavorite: () {
-                              Navigator.of(context).pop();
-                              _showLoginView(register: false);
-                            },
-                            onRate: (_) {
-                              Navigator.of(context).pop();
+                            store: widget.store,
+                            onRequireLogin: () {
                               _showLoginView(register: false);
                             },
                           ),

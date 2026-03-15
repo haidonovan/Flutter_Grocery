@@ -22,6 +22,8 @@ class CartPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.of(context).size.width < 520;
+
     if (items.isEmpty) {
       return const Center(
         child: Text('Your cart is empty. Add products from the shop tab.'),
@@ -40,7 +42,11 @@ class CartPage extends StatelessWidget {
               return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Row(
+                  child: Flex(
+                    direction: isCompact ? Axis.vertical : Axis.horizontal,
+                    crossAxisAlignment: isCompact
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.center,
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
@@ -58,59 +64,31 @@ class CartPage extends StatelessWidget {
                               ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.product.name,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              item.product.discountPercent > 0
-                                  ? '\$${item.product.discountedPrice.toStringAsFixed(2)} each (was \$${item.product.price.toStringAsFixed(2)})'
-                                  : '\$${item.product.price.toStringAsFixed(2)} each',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                      SizedBox(
+                        width: isCompact ? 0 : 12,
+                        height: isCompact ? 12 : 0,
+                      ),
+                      if (isCompact)
+                        SizedBox(
+                          width: double.infinity,
+                          child: _CartItemDetails(
+                            item: item,
+                            onIncrease: () => onIncrease(item),
+                            onDecrease: () => onDecrease(item),
+                            onRemove: () => onRemove(item),
+                            stacked: true,
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: _CartItemDetails(
+                            item: item,
+                            onIncrease: () => onIncrease(item),
+                            onDecrease: () => onDecrease(item),
+                            onRemove: () => onRemove(item),
+                            stacked: false,
+                          ),
                         ),
-                      ),
-                      Column(
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                onPressed: () => onDecrease(item),
-                                icon: const Icon(Icons.remove_circle_outline),
-                              ),
-                              Text('${item.quantity}'),
-                              IconButton(
-                                onPressed: () => onIncrease(item),
-                                icon: const Icon(Icons.add_circle_outline),
-                              ),
-                            ],
-                          ),
-                          TextButton(
-                            onPressed: () => onRemove(item),
-                            child: const Text('Remove'),
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
@@ -123,7 +101,22 @@ class CartPage extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+                  Theme.of(context).colorScheme.surface,
+                  Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.55),
+                ],
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.06),
@@ -139,12 +132,21 @@ class CartPage extends StatelessWidget {
                   children: [
                     Text(
                       'Total',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const Spacer(),
-                    Text(
-                      '\$${totalAmount.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Flexible(
+                      child: Text(
+                        '\$${totalAmount.toStringAsFixed(2)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -157,6 +159,84 @@ class CartPage extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _CartItemDetails extends StatelessWidget {
+  const _CartItemDetails({
+    required this.item,
+    required this.onIncrease,
+    required this.onDecrease,
+    required this.onRemove,
+    required this.stacked,
+  });
+
+  final CartViewItem item;
+  final VoidCallback onIncrease;
+  final VoidCallback onDecrease;
+  final VoidCallback onRemove;
+  final bool stacked;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(item.product.name, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          item.product.discountPercent > 0
+              ? '\$${item.product.discountedPrice.toStringAsFixed(2)} each (was \$${item.product.price.toStringAsFixed(2)})'
+              : '\$${item.product.price.toStringAsFixed(2)} each',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+
+    final controls = Column(
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: onDecrease,
+              icon: const Icon(Icons.remove_circle_outline),
+            ),
+            Text('${item.quantity}'),
+            IconButton(
+              onPressed: onIncrease,
+              icon: const Icon(Icons.add_circle_outline),
+            ),
+          ],
+        ),
+        TextButton(onPressed: onRemove, child: const Text('Remove')),
+      ],
+    );
+
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [info, const SizedBox(height: 8), controls],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: info),
+        const SizedBox(width: 8),
+        controls,
       ],
     );
   }

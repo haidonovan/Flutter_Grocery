@@ -6,6 +6,7 @@ import '../widgets/theme_mode_menu.dart';
 import '../widgets/coupon_banner.dart';
 import 'cart.dart';
 import 'checkout.dart';
+import 'favorites.dart';
 import 'order_history.dart';
 import 'product_detail.dart';
 import 'product_list.dart';
@@ -40,8 +41,10 @@ class _ClientHomeState extends State<ClientHome> {
       case 0:
         return 'Shop';
       case 1:
-        return 'Cart';
+        return 'Favorites';
       case 2:
+        return 'Cart';
+      case 3:
         return 'Orders';
       default:
         return 'Profile';
@@ -49,11 +52,67 @@ class _ClientHomeState extends State<ClientHome> {
   }
 
   List<_NavItem> get _navItems => const [
-        _NavItem('Shop', Icons.storefront),
-        _NavItem('Cart', Icons.shopping_cart),
-        _NavItem('Orders', Icons.receipt_long),
-        _NavItem('Profile', Icons.person),
-      ];
+    _NavItem('Shop', Icons.storefront),
+    _NavItem('Favorites', Icons.favorite),
+    _NavItem('Cart', Icons.shopping_cart),
+    _NavItem('Orders', Icons.receipt_long),
+    _NavItem('Profile', Icons.person),
+  ];
+
+  Widget _buildMobileDrawer(bool isMobile) {
+    final topItems = _navItems
+        .take(_navItems.length - 1)
+        .toList(growable: false);
+    final profileItem = _navItems.last;
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: topItems.length,
+                itemBuilder: (context, index) {
+                  final item = topItems[index];
+                  return ListTile(
+                    leading: Icon(item.icon),
+                    title: Text(item.label),
+                    selected: _currentTabIndex == index,
+                    onTap: () {
+                      setState(() {
+                        _currentTabIndex = index;
+                      });
+                      if (isMobile) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+              child: ListTile(
+                leading: Icon(profileItem.icon),
+                title: Text(profileItem.label),
+                selected: _currentTabIndex == _navItems.length - 1,
+                onTap: () {
+                  setState(() {
+                    _currentTabIndex = _navItems.length - 1;
+                  });
+                  if (isMobile) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _addToCart(String productId) {
     final success = widget.store.addToCart(productId);
@@ -80,19 +139,7 @@ class _ClientHomeState extends State<ClientHome> {
           onAddToCart: () {
             _addToCart(product.id);
           },
-          isFavorite: widget.store.isFavorite(product.id),
-          onToggleFavorite: () async {
-            await widget.store.toggleFavorite(product.id);
-          },
-          onRate: (rating) async {
-            await widget.store.submitRating(product.id, rating);
-            if (!mounted) {
-              return;
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Thanks for rating $rating stars.')),
-            );
-          },
+          store: widget.store,
         ),
       ),
     );
@@ -143,8 +190,10 @@ class _ClientHomeState extends State<ClientHome> {
     final key = 'shown_coupons_${widget.userEmail}';
     final shown = prefs.getStringList(key) ?? [];
 
-    final nextCoupon = widget.store.activeCoupons
-        .firstWhere((coupon) => !shown.contains(coupon.code), orElse: () => widget.store.activeCoupons.first);
+    final nextCoupon = widget.store.activeCoupons.firstWhere(
+      (coupon) => !shown.contains(coupon.code),
+      orElse: () => widget.store.activeCoupons.first,
+    );
 
     if (shown.contains(nextCoupon.code)) {
       return;
@@ -174,31 +223,14 @@ class _ClientHomeState extends State<ClientHome> {
         final orders = widget.store.allOrders;
         final cartItems = widget.store.cartItems;
         final products = widget.store.storefrontProducts;
+        final favoriteProducts = products
+            .where((product) => widget.store.isFavorite(product.id))
+            .toList(growable: false);
         final isMobile = MediaQuery.of(context).size.width < 600;
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _maybeShowCouponPrompt();
         });
-
-        final navList = ListView.builder(
-          itemCount: _navItems.length,
-          itemBuilder: (context, index) {
-            final item = _navItems[index];
-            return ListTile(
-              leading: Icon(item.icon),
-              title: Text(item.label),
-              selected: _currentTabIndex == index,
-              onTap: () {
-                setState(() {
-                  _currentTabIndex = index;
-                });
-                if (isMobile) {
-                  Navigator.of(context).pop();
-                }
-              },
-            );
-          },
-        );
 
         final body = IndexedStack(
           index: _currentTabIndex,
@@ -212,6 +244,14 @@ class _ClientHomeState extends State<ClientHome> {
               onToggleFavorite: widget.store.toggleFavorite,
               isLoading:
                   widget.store.isInitializing || widget.store.isLoadingProducts,
+            ),
+            FavoritesPage(
+              products: favoriteProducts,
+              cartQuantityForProduct: widget.store.cartQuantityForProduct,
+              onOpenProduct: _openProductDetail,
+              onAddToCart: _addToCart,
+              isFavorite: widget.store.isFavorite,
+              onToggleFavorite: widget.store.toggleFavorite,
             ),
             CartPage(
               items: cartItems,
@@ -244,8 +284,11 @@ class _ClientHomeState extends State<ClientHome> {
               userEmail: widget.userEmail,
               totalOrders: orders.length,
               onLogout: widget.onLogout,
-              onSendSupport: widget.store.submitSupportMessage,
+              onSendSupport: widget.store.submitSupportTicket,
+              onReplySupport: widget.store.sendSupportThreadMessage,
+              onCloseSupport: widget.store.closeSupportTicket,
               activeCoupons: widget.store.activeCoupons,
+              supportTickets: widget.store.mySupportTickets,
               isLoading: widget.store.isInitializing,
             ),
           ],
@@ -260,24 +303,26 @@ class _ClientHomeState extends State<ClientHome> {
                 onChanged: widget.onThemeModeChanged,
               ),
               const SizedBox(width: 4),
-              if (_currentTabIndex != 1)
+              if (_currentTabIndex != 2)
                 Padding(
                   padding: const EdgeInsets.only(right: 14),
-                  child: Badge(
-                    isLabelVisible: widget.store.cartItemCount > 0,
-                    label: Text('${widget.store.cartItemCount}'),
-                    child: const Icon(Icons.shopping_cart_outlined),
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _currentTabIndex = 2;
+                      });
+                    },
+                    tooltip: 'Open cart',
+                    icon: Badge(
+                      isLabelVisible: widget.store.cartItemCount > 0,
+                      label: Text('${widget.store.cartItemCount}'),
+                      child: const Icon(Icons.shopping_cart_outlined),
+                    ),
                   ),
                 ),
             ],
           ),
-          drawer: isMobile
-              ? Drawer(
-                  child: SafeArea(
-                    child: navList,
-                  ),
-                )
-              : null,
+          drawer: isMobile ? _buildMobileDrawer(isMobile) : null,
           body: body,
           bottomNavigationBar: isMobile
               ? null

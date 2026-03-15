@@ -55,6 +55,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       body: Form(
@@ -116,16 +119,63 @@ class _CheckoutPageState extends State<CheckoutPage> {
               },
             ),
             const SizedBox(height: 16),
-            Text(
-              'Coupon code',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Coupon code', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.primaryContainer.withValues(alpha: 0.7),
+                    scheme.secondaryContainer.withValues(alpha: 0.55),
+                  ],
+                ),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: scheme.surface.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.local_offer_outlined,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Have a promo code from your coupon wallet or a campaign? Enter it below and the backend will validate the discount when you place the order.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onPrimaryContainer,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
             TextFormField(
               controller: _couponController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Enter coupon (optional)',
-                border: OutlineInputBorder(),
+                helperText:
+                    'Copy a code from Profile > Coupon wallet and paste it here.',
+                filled: true,
+                fillColor: scheme.surfaceContainerHighest.withValues(
+                  alpha: 0.55,
+                ),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),

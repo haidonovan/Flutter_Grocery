@@ -2,26 +2,155 @@ import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
+import 'dashboard.dart';
+import '../utils/csv_export.dart';
 
-class SalesReportPage extends StatelessWidget {
+class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key, required this.store});
 
   final GroceryStoreState store;
 
   @override
+  State<SalesReportPage> createState() => _SalesReportPageState();
+}
+
+class _SalesReportPageState extends State<SalesReportPage> {
+  ChartRange _range = ChartRange.month;
+  DateTime? _customStart;
+  DateTime? _customEnd;
+  String _query = '';
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 3),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: DateTimeRange(
+        start: _customStart ?? now.subtract(const Duration(days: 29)),
+        end: _customEnd ?? now,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _customStart = picked.start;
+        _customEnd = picked.end;
+        _range = ChartRange.custom;
+      });
+    }
+  }
+
+  RevenueRangeConfig _rangeConfig() {
+    final now = DateTime.now();
+    switch (_range) {
+      case ChartRange.sevenDays:
+        return RevenueRangeConfig(
+          start: DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 6)),
+          end: DateTime(now.year, now.month, now.day),
+          bucketDays: 1,
+        );
+      case ChartRange.month:
+        return RevenueRangeConfig(
+          start: DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 29)),
+          end: DateTime(now.year, now.month, now.day),
+          bucketDays: 1,
+        );
+      case ChartRange.year:
+        return RevenueRangeConfig(
+          start: DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 364)),
+          end: DateTime(now.year, now.month, now.day),
+          bucketDays: 30,
+        );
+      case ChartRange.custom:
+        final start =
+            _customStart ??
+            DateTime(
+              now.year,
+              now.month,
+              now.day,
+            ).subtract(const Duration(days: 29));
+        final end = _customEnd ?? DateTime(now.year, now.month, now.day);
+        final diffDays = end.difference(start).inDays.abs() + 1;
+        return RevenueRangeConfig(
+          start: start,
+          end: end,
+          bucketDays: diffDays > 60 ? 7 : 1,
+        );
+    }
+  }
+
+  List<OrderRecord> _filteredOrders(List<OrderRecord> orders) {
+    final range = _rangeConfig();
+    return orders.where((order) {
+      if (order.status == OrderStatus.cancelled) {
+        return false;
+      }
+      return !order.createdAt.isBefore(range.start) &&
+          !order.createdAt.isAfter(range.end.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  Future<void> _exportSales(
+    List<MapEntry<String, int>> topProducts,
+    List<OrderRecord> orders,
+  ) async {
+    final rows = <List<String>>[
+      ['Section', 'Name', 'Value', 'Date'],
+      ...orders.map(
+        (order) => [
+          'Revenue',
+          order.id,
+          order.total.toStringAsFixed(2),
+          order.createdAt.toIso8601String(),
+        ],
+      ),
+      ...topProducts.map(
+        (entry) => ['Top Product', entry.key, entry.value.toString(), ''],
+      ),
+    ];
+    final success = await exportCsv('sales_export.csv', buildCsv(rows));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Sales CSV downloaded.'
+              : 'CSV export is available on web builds.',
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: store,
+      animation: widget.store,
       builder: (context, _) {
-        final deliveredCount = store.allOrders
+        final filteredOrders = _filteredOrders(widget.store.allOrders);
+        final range = _rangeConfig();
+        final deliveredCount = widget.store.allOrders
             .where((order) => order.status == OrderStatus.delivered)
             .length;
-        final cancelledCount = store.allOrders
+        final cancelledCount = widget.store.allOrders
             .where((order) => order.status == OrderStatus.cancelled)
             .length;
 
         final productSales = <String, int>{};
-        for (final order in store.allOrders) {
+        for (final order in widget.store.allOrders) {
           if (order.status == OrderStatus.cancelled) {
             continue;
           }
@@ -31,8 +160,15 @@ class SalesReportPage extends StatelessWidget {
           }
         }
 
-        final topProducts = productSales.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
+        final topProducts =
+            productSales.entries
+                .where(
+                  (entry) => entry.key.toLowerCase().contains(
+                    _query.trim().toLowerCase(),
+                  ),
+                )
+                .toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -49,12 +185,59 @@ class SalesReportPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '\$${store.revenueTotal.toStringAsFixed(2)}',
+                      '\$${widget.store.revenueTotal.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Cancelled order value: \$${store.cancelledValue.toStringAsFixed(2)}',
+                      'Cancelled order value: \$${widget.store.cancelledValue.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            RangeSelector(
+              selected: _range,
+              onSelect: (next) {
+                setState(() {
+                  _range = next;
+                });
+                if (next == ChartRange.custom) {
+                  _pickCustomRange();
+                }
+              },
+              onPickCustom: _pickCustomRange,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  '${filteredOrders.length} order${filteredOrders.length == 1 ? '' : 's'} in range',
+                ),
+                const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: () => _exportSales(topProducts, filteredOrders),
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Export CSV'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Revenue over time',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 260,
+                      child: RevenueChart(orders: filteredOrders, range: range),
                     ),
                   ],
                 ),
@@ -64,16 +247,35 @@ class SalesReportPage extends StatelessWidget {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
                   children: [
-                    Expanded(
-                      child: Text('Total orders: ${store.allOrders.length}'),
-                    ),
-                    Expanded(child: Text('Delivered: $deliveredCount')),
-                    Expanded(child: Text('Cancelled: $cancelledCount')),
+                    Text('Total orders: ${widget.store.allOrders.length}'),
+                    Text('Delivered: $deliveredCount'),
+                    Text('Cancelled: $cancelledCount'),
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Search top-selling product',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () => setState(() => _query = ''),
+                        icon: const Icon(Icons.close),
+                      ),
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) => setState(() => _query = value),
             ),
             const SizedBox(height: 14),
             Text(

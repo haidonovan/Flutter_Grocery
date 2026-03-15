@@ -93,8 +93,9 @@ class _MyAppState extends State<MyApp> {
       seedColor: const Color(0xFF127C73),
       brightness: brightness,
     );
-    final baseTheme =
-        brightness == Brightness.dark ? ThemeData.dark() : ThemeData.light();
+    final baseTheme = brightness == Brightness.dark
+        ? ThemeData.dark()
+        : ThemeData.light();
     final textTheme = GoogleFonts.spaceGroteskTextTheme(baseTheme.textTheme);
 
     return baseTheme.copyWith(
@@ -120,16 +121,15 @@ class _MyAppState extends State<MyApp> {
         shadowColor: colorScheme.shadow.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.3),
-          ),
+          side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor:
-            brightness == Brightness.dark ? colorScheme.surface : Colors.white,
+        fillColor: brightness == Brightness.dark
+            ? colorScheme.surface
+            : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: colorScheme.outline),
@@ -168,7 +168,9 @@ class _MyAppState extends State<MyApp> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -178,7 +180,9 @@ class _MyAppState extends State<MyApp> {
             borderRadius: BorderRadius.circular(12),
           ),
           side: BorderSide(color: colorScheme.outline),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       chipTheme: baseTheme.chipTheme.copyWith(
@@ -247,8 +251,9 @@ class AppBackground extends StatelessWidget {
         ? const [Color(0xFF0B0F14), Color(0xFF121D27)]
         : const [Color(0xFFF7F2EC), Color(0xFFE7F3F1)];
     final accent = isDark ? const Color(0xFF2A4154) : const Color(0xFFB7D6D0);
-    final accentSecondary =
-        isDark ? const Color(0xFF3A2B4A) : const Color(0xFFF0D9C6);
+    final accentSecondary = isDark
+        ? const Color(0xFF3A2B4A)
+        : const Color(0xFFF0D9C6);
 
     return DecoratedBox(
       decoration: BoxDecoration(

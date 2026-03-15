@@ -29,18 +29,9 @@ class ThemeModeMenu extends StatelessWidget {
       icon: Icon(_icon),
       onSelected: onChanged,
       itemBuilder: (context) => const [
-        PopupMenuItem(
-          value: ThemeMode.system,
-          child: Text('System'),
-        ),
-        PopupMenuItem(
-          value: ThemeMode.light,
-          child: Text('Light'),
-        ),
-        PopupMenuItem(
-          value: ThemeMode.dark,
-          child: Text('Dark'),
-        ),
+        PopupMenuItem(value: ThemeMode.system, child: Text('System')),
+        PopupMenuItem(value: ThemeMode.light, child: Text('Light')),
+        PopupMenuItem(value: ThemeMode.dark, child: Text('Dark')),
       ],
     );
   }

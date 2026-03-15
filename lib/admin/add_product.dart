@@ -76,8 +76,7 @@ class _AddProductPageState extends State<AddProductPage> {
       text: product == null ? '' : product.price.toStringAsFixed(2),
     );
     _discountController = TextEditingController(
-      text:
-          product == null ? '0' : product.discountPercent.toStringAsFixed(0),
+      text: product == null ? '0' : product.discountPercent.toStringAsFixed(0),
     );
     _discountStart = product?.discountStart;
     _discountEnd = product?.discountEnd;
@@ -275,22 +274,23 @@ class _AddProductPageState extends State<AddProductPage> {
               onSelected: (value) {
                 _categoryController.text = value;
               },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: const InputDecoration(
-                    labelText: 'Category (pick or type new)',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if ((value ?? '').trim().isEmpty) {
-                      return 'Enter category';
-                    }
-                    return null;
+              fieldViewBuilder:
+                  (context, controller, focusNode, onFieldSubmitted) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Category (pick or type new)',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return 'Enter category';
+                        }
+                        return null;
+                      },
+                    );
                   },
-                );
-              },
               optionsViewBuilder: (context, onSelected, options) {
                 return Align(
                   alignment: Alignment.topLeft,
