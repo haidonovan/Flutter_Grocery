@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/press_scale.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
@@ -92,7 +94,9 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
           const SizedBox(height: 16),
-          FilledButton(onPressed: _submit, child: const Text('Login')),
+          PressScale(
+            child: FilledButton(onPressed: _submit, child: const Text('Login')),
+          ),
           TextButton(
             onPressed: widget.onSwitchToRegister,
             child: const Text('Create account'),

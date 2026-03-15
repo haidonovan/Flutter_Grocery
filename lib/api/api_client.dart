@@ -85,6 +85,12 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> deleteJson(String path) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    final response = await http.delete(uri, headers: _headers());
+    return _decode(response);
+  }
+
   Future<Map<String, dynamic>> uploadImage(String path, XFile file) async {
     final uri = Uri.parse('$_baseUrl$path');
     final request = http.MultipartRequest('POST', uri);

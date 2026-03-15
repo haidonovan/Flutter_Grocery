@@ -21,6 +21,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Future<void> _restock(BuildContext context, Product product) async {
     final controller = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
 
     final value = await showDialog<int>(
       context: context,
@@ -53,7 +54,20 @@ class _InventoryPageState extends State<InventoryPage> {
     );
 
     if (value != null && value > 0) {
-      widget.store.restockProduct(product.id, value);
+      try {
+        await widget.store.restockProduct(product.id, value);
+        if (!mounted) {
+          return;
+        }
+        messenger.showSnackBar(
+          SnackBar(content: Text('${product.name} restocked by $value.')),
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     }
   }
 

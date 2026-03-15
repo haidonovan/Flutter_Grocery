@@ -769,7 +769,7 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<void> updateProduct(Product updated) async {
-    await _apiClient.putJson('/api/products/${updated.id}', {
+    final response = await _apiClient.putJson('/api/products/${updated.id}', {
       'name': updated.name,
       'category': updated.category,
       'description': updated.description,
@@ -781,7 +781,8 @@ class GroceryStoreState extends ChangeNotifier {
       'stock': updated.stock,
       'isActive': updated.isActive,
     });
-    await refreshAll();
+    _mergeProductFromApi(response);
+    await _loadCategories();
   }
 
   Future<void> toggleProductStatus(String productId, bool isActive) async {
@@ -789,12 +790,52 @@ class GroceryStoreState extends ChangeNotifier {
     if (product == null) {
       return;
     }
-    await updateProduct(product.copyWith(isActive: isActive));
+    final index = _products.indexWhere((item) => item.id == productId);
+    if (index == -1) {
+      return;
+    }
+
+    final previous = _products[index];
+    _products[index] = previous.copyWith(isActive: isActive);
+    notifyListeners();
+
+    try {
+      await updateProduct(previous.copyWith(isActive: isActive));
+    } catch (_) {
+      _products[index] = previous;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> deleteProduct(String productId) async {
-    await _apiClient.delete('/api/products/$productId');
-    await refreshAll();
+    final index = _products.indexWhere((item) => item.id == productId);
+    if (index == -1) {
+      await _apiClient.delete('/api/products/$productId');
+      await _loadCategories();
+      return;
+    }
+
+    final existing = _products[index];
+    _products.removeAt(index);
+    notifyListeners();
+
+    try {
+      final response = await _apiClient.deleteJson('/api/products/$productId');
+      final archived = response['archived'] == true;
+      final archivedProduct = response['product'];
+
+      if (archived && archivedProduct is Map<String, dynamic>) {
+        _products.insert(index, _productFromApi(archivedProduct));
+        notifyListeners();
+      }
+
+      await _loadCategories();
+    } catch (_) {
+      _products.insert(index, existing);
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> restockProduct(String productId, int quantityAdded) async {
@@ -1010,6 +1051,17 @@ class GroceryStoreState extends ChangeNotifier {
       stock: (data['stock'] as num?)?.toInt() ?? 0,
       isActive: data['isActive'] == null ? true : data['isActive'] == true,
     );
+  }
+
+  void _mergeProductFromApi(Map<String, dynamic> raw) {
+    final product = _productFromApi(raw);
+    final index = _products.indexWhere((item) => item.id == product.id);
+    if (index == -1) {
+      _products.insert(0, product);
+    } else {
+      _products[index] = product;
+    }
+    notifyListeners();
   }
 
   OrderRecord _orderFromApi(dynamic raw) {

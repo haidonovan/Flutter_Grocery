@@ -6,12 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'auth/auth.dart';
 import 'store/grocery_store_state.dart';
 
+enum AppThemeStyle { classic, golden, pink }
+
 void main() {
   runApp(MyApp());
 }
 
 class MyApp extends StatefulWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -23,9 +25,11 @@ class _MyAppState extends State<MyApp> {
     defaultValue: '',
   );
   static const String _themePrefKey = 'theme_mode';
+  static const String _themeStylePrefKey = 'theme_style';
 
   late final Future<GroceryStoreState> _storeFuture;
   ThemeMode _themeMode = ThemeMode.system;
+  AppThemeStyle _themeStyle = AppThemeStyle.classic;
 
   @override
   void initState() {
@@ -51,8 +55,10 @@ class _MyAppState extends State<MyApp> {
   Future<void> _loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_themePrefKey);
+    final rawStyle = prefs.getString(_themeStylePrefKey);
     setState(() {
       _themeMode = _decodeThemeMode(raw);
+      _themeStyle = _decodeThemeStyle(rawStyle);
     });
   }
 
@@ -68,6 +74,18 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  AppThemeStyle _decodeThemeStyle(String? raw) {
+    switch (raw) {
+      case 'golden':
+        return AppThemeStyle.golden;
+      case 'pink':
+        return AppThemeStyle.pink;
+      case 'classic':
+      default:
+        return AppThemeStyle.classic;
+    }
+  }
+
   String _encodeThemeMode(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
@@ -75,8 +93,18 @@ class _MyAppState extends State<MyApp> {
       case ThemeMode.dark:
         return 'dark';
       case ThemeMode.system:
-      default:
         return 'system';
+    }
+  }
+
+  String _encodeThemeStyle(AppThemeStyle style) {
+    switch (style) {
+      case AppThemeStyle.golden:
+        return 'golden';
+      case AppThemeStyle.pink:
+        return 'pink';
+      case AppThemeStyle.classic:
+        return 'classic';
     }
   }
 
@@ -88,23 +116,123 @@ class _MyAppState extends State<MyApp> {
     await prefs.setString(_themePrefKey, _encodeThemeMode(mode));
   }
 
-  ThemeData _buildTheme(Brightness brightness) {
+  Future<void> _setThemeStyle(AppThemeStyle style) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _themeStyle = style;
+    });
+    await prefs.setString(_themeStylePrefKey, _encodeThemeStyle(style));
+  }
+
+  Color _seedColorForStyle(AppThemeStyle style) {
+    switch (style) {
+      case AppThemeStyle.golden:
+        return const Color(0xFFC69214);
+      case AppThemeStyle.pink:
+        return const Color(0xFFD85A9A);
+      case AppThemeStyle.classic:
+        return const Color(0xFF127C73);
+    }
+  }
+
+  Color _surfaceTintForStyle(AppThemeStyle style, Brightness brightness) {
+    switch (style) {
+      case AppThemeStyle.golden:
+        return brightness == Brightness.dark
+            ? const Color(0xFF5B4311)
+            : const Color(0xFFF6E2A8);
+      case AppThemeStyle.pink:
+        return brightness == Brightness.dark
+            ? const Color(0xFF4A2137)
+            : const Color(0xFFF8C9DE);
+      case AppThemeStyle.classic:
+        return brightness == Brightness.dark
+            ? const Color(0xFF183445)
+            : const Color(0xFFD9EEE9);
+    }
+  }
+
+  Color _cardColorForStyle(
+    AppThemeStyle style,
+    Brightness brightness,
+    ColorScheme colorScheme,
+  ) {
+    switch (style) {
+      case AppThemeStyle.golden:
+        return brightness == Brightness.dark
+            ? const Color(0xFF21170D)
+            : const Color(0xFFFFF8EA);
+      case AppThemeStyle.pink:
+        return brightness == Brightness.dark
+            ? const Color(0xFF21121A)
+            : const Color(0xFFFFF7FB);
+      case AppThemeStyle.classic:
+        return brightness == Brightness.dark ? colorScheme.surface : Colors.white;
+    }
+  }
+
+  Color _inputFillForStyle(
+    AppThemeStyle style,
+    Brightness brightness,
+    ColorScheme colorScheme,
+  ) {
+    switch (style) {
+      case AppThemeStyle.golden:
+        return brightness == Brightness.dark
+            ? const Color(0xFF261A0E)
+            : const Color(0xFFFFF4DD);
+      case AppThemeStyle.pink:
+        return brightness == Brightness.dark
+            ? const Color(0xFF26151F)
+            : const Color(0xFFFFF1F7);
+      case AppThemeStyle.classic:
+        return brightness == Brightness.dark ? colorScheme.surface : Colors.white;
+    }
+  }
+
+  Color _buttonBackgroundForStyle(
+    AppThemeStyle style,
+    Brightness brightness,
+    ColorScheme colorScheme,
+  ) {
+    switch (style) {
+      case AppThemeStyle.golden:
+        return brightness == Brightness.dark
+            ? const Color(0xFFD3A63A)
+            : const Color(0xFFB8860B);
+      case AppThemeStyle.pink:
+        return brightness == Brightness.dark
+            ? const Color(0xFFE170A8)
+            : const Color(0xFFD85A9A);
+      case AppThemeStyle.classic:
+        return colorScheme.primary;
+    }
+  }
+
+  ThemeData _buildTheme(Brightness brightness, AppThemeStyle style) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF127C73),
+      seedColor: _seedColorForStyle(style),
       brightness: brightness,
     );
     final baseTheme = brightness == Brightness.dark
         ? ThemeData.dark()
         : ThemeData.light();
     final textTheme = GoogleFonts.spaceGroteskTextTheme(baseTheme.textTheme);
+    final surfaceTint = _surfaceTintForStyle(style, brightness);
+    final cardColor = _cardColorForStyle(style, brightness, colorScheme);
+    final inputFill = _inputFillForStyle(style, brightness, colorScheme);
+    final buttonBackground = _buttonBackgroundForStyle(
+      style,
+      brightness,
+      colorScheme,
+    );
 
     return baseTheme.copyWith(
-      useMaterial3: true,
       colorScheme: colorScheme,
       textTheme: textTheme,
       scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface.withValues(alpha: 0.95),
+        backgroundColor: cardColor.withValues(alpha: 0.94),
         elevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
@@ -115,28 +243,24 @@ class _MyAppState extends State<MyApp> {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: brightness == Brightness.dark
-            ? colorScheme.surface
-            : Colors.white,
+        color: cardColor,
         shadowColor: colorScheme.shadow.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+          side: BorderSide(color: surfaceTint.withValues(alpha: 0.26)),
         ),
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: brightness == Brightness.dark
-            ? colorScheme.surface
-            : Colors.white,
+        fillColor: inputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderSide: BorderSide(color: surfaceTint.withValues(alpha: 0.45)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
+          borderSide: BorderSide(color: surfaceTint.withValues(alpha: 0.28)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -145,7 +269,7 @@ class _MyAppState extends State<MyApp> {
         labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surface.withValues(alpha: 0.95),
+        backgroundColor: cardColor.withValues(alpha: 0.96),
         indicatorColor: colorScheme.primary.withValues(alpha: 0.14),
         labelTextStyle: WidgetStateProperty.all(
           textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -164,6 +288,13 @@ class _MyAppState extends State<MyApp> {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          backgroundColor: buttonBackground,
+          foregroundColor: ThemeData.estimateBrightnessForColor(
+                    buttonBackground,
+                  ) ==
+                  Brightness.dark
+              ? Colors.white
+              : Colors.black,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -179,24 +310,26 @@ class _MyAppState extends State<MyApp> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          side: BorderSide(color: colorScheme.outline),
+          side: BorderSide(color: surfaceTint.withValues(alpha: 0.45)),
           textStyle: textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
       chipTheme: baseTheme.chipTheme.copyWith(
+        backgroundColor: inputFill,
+        selectedColor: surfaceTint.withValues(alpha: 0.22),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: colorScheme.outlineVariant),
+          side: BorderSide(color: surfaceTint.withValues(alpha: 0.28)),
         ),
         labelStyle: textTheme.labelMedium,
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: colorScheme.surface,
+        color: cardColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colorScheme.outlineVariant),
+          side: BorderSide(color: surfaceTint.withValues(alpha: 0.28)),
         ),
       ),
     );
@@ -207,11 +340,14 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Grocery Store',
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
+      theme: _buildTheme(Brightness.light, _themeStyle),
+      darkTheme: _buildTheme(Brightness.dark, _themeStyle),
       themeMode: _themeMode,
       builder: (context, child) {
-        return AppBackground(child: child ?? const SizedBox.shrink());
+        return AppBackground(
+          themeStyle: _themeStyle,
+          child: child ?? const SizedBox.shrink(),
+        );
       },
       home: FutureBuilder<GroceryStoreState>(
         future: _storeFuture,
@@ -231,7 +367,9 @@ class _MyAppState extends State<MyApp> {
           return AuthGate(
             store: snapshot.data!,
             themeMode: _themeMode,
+            themeStyle: _themeStyle,
             onThemeModeChanged: _setThemeMode,
+            onThemeStyleChanged: _setThemeStyle,
           );
         },
       ),
@@ -240,20 +378,41 @@ class _MyAppState extends State<MyApp> {
 }
 
 class AppBackground extends StatelessWidget {
-  const AppBackground({super.key, required this.child});
+  const AppBackground({
+    super.key,
+    required this.child,
+    required this.themeStyle,
+  });
 
   final Widget child;
+  final AppThemeStyle themeStyle;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final background = isDark
-        ? const [Color(0xFF0B0F14), Color(0xFF121D27)]
-        : const [Color(0xFFF7F2EC), Color(0xFFE7F3F1)];
-    final accent = isDark ? const Color(0xFF2A4154) : const Color(0xFFB7D6D0);
-    final accentSecondary = isDark
-        ? const Color(0xFF3A2B4A)
-        : const Color(0xFFF0D9C6);
+    final (background, accent, accentSecondary) = switch (themeStyle) {
+      AppThemeStyle.golden => (
+        isDark
+            ? const [Color(0xFF17120A), Color(0xFF241A0E)]
+            : const [Color(0xFFFBF4DF), Color(0xFFF2E2B7)],
+        isDark ? const Color(0xFF8A6721) : const Color(0xFFE2C16C),
+        isDark ? const Color(0xFF5D3D13) : const Color(0xFFF4D7A1),
+      ),
+      AppThemeStyle.pink => (
+        isDark
+            ? const [Color(0xFF170C13), Color(0xFF24101C)]
+            : const [Color(0xFFFFF0F6), Color(0xFFF9D9E7)],
+        isDark ? const Color(0xFF6A2E51) : const Color(0xFFF1A6C7),
+        isDark ? const Color(0xFF3C1832) : const Color(0xFFF7C6DB),
+      ),
+      AppThemeStyle.classic => (
+        isDark
+            ? const [Color(0xFF0B0F14), Color(0xFF121D27)]
+            : const [Color(0xFFF7F2EC), Color(0xFFE7F3F1)],
+        isDark ? const Color(0xFF2A4154) : const Color(0xFFB7D6D0),
+        isDark ? const Color(0xFF3A2B4A) : const Color(0xFFF0D9C6),
+      ),
+    };
 
     return DecoratedBox(
       decoration: BoxDecoration(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../main.dart';
 import '../store/grocery_store_state.dart';
+import '../widgets/entrance_motion.dart';
 import '../widgets/theme_mode_menu.dart';
 import 'dashboard.dart';
 import 'coupons.dart';
@@ -16,13 +18,17 @@ class AdminHome extends StatefulWidget {
     required this.store,
     required this.onLogout,
     required this.themeMode,
+    required this.themeStyle,
     required this.onThemeModeChanged,
+    required this.onThemeStyleChanged,
   });
 
   final GroceryStoreState store;
   final VoidCallback onLogout;
   final ThemeMode themeMode;
+  final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final ValueChanged<AppThemeStyle> onThemeStyleChanged;
 
   @override
   State<AdminHome> createState() => _AdminHomeState();
@@ -175,13 +181,37 @@ class _AdminHomeState extends State<AdminHome> {
         final content = IndexedStack(
           index: _selectedIndex,
           children: [
-            AdminDashboardPage(store: widget.store),
-            ProductManagementPage(store: widget.store),
-            InventoryPage(store: widget.store),
-            OrderManagementPage(store: widget.store),
-            SalesReportPage(store: widget.store),
-            CouponManagementPage(store: widget.store),
-            SupportInboxPage(store: widget.store),
+            EntranceMotion(
+              active: _selectedIndex == 0,
+              child: AdminDashboardPage(
+                store: widget.store,
+                active: _selectedIndex == 0,
+              ),
+            ),
+            EntranceMotion(
+              active: _selectedIndex == 1,
+              child: ProductManagementPage(store: widget.store),
+            ),
+            EntranceMotion(
+              active: _selectedIndex == 2,
+              child: InventoryPage(store: widget.store),
+            ),
+            EntranceMotion(
+              active: _selectedIndex == 3,
+              child: OrderManagementPage(store: widget.store),
+            ),
+            EntranceMotion(
+              active: _selectedIndex == 4,
+              child: SalesReportPage(store: widget.store),
+            ),
+            EntranceMotion(
+              active: _selectedIndex == 5,
+              child: CouponManagementPage(store: widget.store),
+            ),
+            EntranceMotion(
+              active: _selectedIndex == 6,
+              child: SupportInboxPage(store: widget.store),
+            ),
           ],
         );
 
@@ -191,7 +221,9 @@ class _AdminHomeState extends State<AdminHome> {
             actions: [
               ThemeModeMenu(
                 themeMode: widget.themeMode,
+                themeStyle: widget.themeStyle,
                 onChanged: widget.onThemeModeChanged,
+                onStyleChanged: widget.onThemeStyleChanged,
               ),
               IconButton(
                 onPressed: widget.onLogout,

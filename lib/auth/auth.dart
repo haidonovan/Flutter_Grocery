@@ -4,7 +4,10 @@ import '../admin/home.dart';
 import '../client/home.dart';
 import '../client/product_detail.dart';
 import '../client/product_list.dart';
+import '../main.dart';
 import '../store/grocery_store_state.dart';
+import '../widgets/app_page_route.dart';
+import '../widgets/entrance_motion.dart';
 import '../widgets/theme_mode_menu.dart';
 import 'login.dart';
 import 'register.dart';
@@ -16,12 +19,16 @@ class AuthGate extends StatefulWidget {
     super.key,
     required this.store,
     required this.themeMode,
+    required this.themeStyle,
     required this.onThemeModeChanged,
+    required this.onThemeStyleChanged,
   });
 
   final GroceryStoreState store;
   final ThemeMode themeMode;
+  final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final ValueChanged<AppThemeStyle> onThemeStyleChanged;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -119,7 +126,9 @@ class _AuthGateState extends State<AuthGate> {
               store: widget.store,
               onLogout: _handleLogout,
               themeMode: widget.themeMode,
+              themeStyle: widget.themeStyle,
               onThemeModeChanged: widget.onThemeModeChanged,
+              onThemeStyleChanged: widget.onThemeStyleChanged,
             );
           }
           return ClientHome(
@@ -127,7 +136,9 @@ class _AuthGateState extends State<AuthGate> {
             store: widget.store,
             onLogout: _handleLogout,
             themeMode: widget.themeMode,
+            themeStyle: widget.themeStyle,
             onThemeModeChanged: widget.onThemeModeChanged,
+            onThemeStyleChanged: widget.onThemeStyleChanged,
           );
         }
 
@@ -139,7 +150,9 @@ class _AuthGateState extends State<AuthGate> {
               actions: [
                 ThemeModeMenu(
                   themeMode: widget.themeMode,
+                  themeStyle: widget.themeStyle,
                   onChanged: widget.onThemeModeChanged,
+                  onStyleChanged: widget.onThemeStyleChanged,
                 ),
                 const SizedBox(width: 4),
                 TextButton(
@@ -151,70 +164,78 @@ class _AuthGateState extends State<AuthGate> {
             ),
             body: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  color: Colors.teal.withValues(alpha: 0.1),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Browse products freely. Login to add items and checkout.',
+                EntranceMotion(
+                  delay: const Duration(milliseconds: 80),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    color: Colors.teal.withValues(alpha: 0.1),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Browse products freely. Login to add items and checkout.',
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () => _showLoginView(register: true),
-                        child: const Text('Create account'),
-                      ),
-                    ],
+                        TextButton(
+                          onPressed: () => _showLoginView(register: true),
+                          child: const Text('Create account'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Expanded(
-                  child: ProductListPage(
-                    products: products,
-                    cartQuantityForProduct: (_) => 0,
-                    onOpenProduct: (productId) async {
-                      final product = widget.store.getProductById(productId);
-                      if (product == null) {
-                        return;
-                      }
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ProductDetailPage(
-                            product: product,
-                            cartQuantity: 0,
-                            onAddToCart: () {
-                              Navigator.of(context).pop();
-                              _showLoginView(register: false);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Login to add items to cart.'),
-                                ),
-                              );
-                            },
-                            store: widget.store,
-                            onRequireLogin: () {
-                              _showLoginView(register: false);
-                            },
+                  child: EntranceMotion(
+                    delay: const Duration(milliseconds: 160),
+                    child: ProductListPage(
+                      products: products,
+                      cartQuantityForProduct: (_) => 0,
+                      onOpenProduct: (productId) async {
+                        final product = widget.store.getProductById(productId);
+                        if (product == null) {
+                          return;
+                        }
+                        await Navigator.of(context).push(
+                          AppPageRoute<void>(
+                            builder: (_) => ProductDetailPage(
+                              product: product,
+                              cartQuantity: 0,
+                              onAddToCart: () {
+                                Navigator.of(context).pop();
+                                _showLoginView(register: false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Login to add items to cart.',
+                                    ),
+                                  ),
+                                );
+                              },
+                              store: widget.store,
+                              onRequireLogin: () {
+                                _showLoginView(register: false);
+                              },
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    onAddToCart: (_) {
-                      _showLoginView(register: false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Login to add items to cart.'),
-                        ),
-                      );
-                    },
-                    isFavorite: (_) => false,
-                    onToggleFavorite: (_) async {
-                      _showLoginView(register: false);
-                    },
-                    isLoading:
-                        widget.store.isInitializing ||
-                        widget.store.isLoadingProducts,
+                        );
+                      },
+                      onAddToCart: (_) {
+                        _showLoginView(register: false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Login to add items to cart.'),
+                          ),
+                        );
+                      },
+                      isFavorite: (_) => false,
+                      onToggleFavorite: (_) async {
+                        _showLoginView(register: false);
+                      },
+                      isLoading:
+                          widget.store.isInitializing ||
+                          widget.store.isLoadingProducts,
+                    ),
                   ),
                 ),
               ],
@@ -229,95 +250,115 @@ class _AuthGateState extends State<AuthGate> {
                 padding: const EdgeInsets.all(20),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 460),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ThemeModeMenu(
-                              themeMode: widget.themeMode,
-                              onChanged: widget.onThemeModeChanged,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SegmentedButton<_RoleTab>(
-                            segments: [
-                              const ButtonSegment<_RoleTab>(
-                                value: _RoleTab.client,
-                                icon: Icon(Icons.person),
-                                label: Text('Client'),
+                  child: EntranceMotion(
+                    delay: const Duration(milliseconds: 80),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ThemeModeMenu(
+                                themeMode: widget.themeMode,
+                                themeStyle: widget.themeStyle,
+                                onChanged: widget.onThemeModeChanged,
+                                onStyleChanged: widget.onThemeStyleChanged,
                               ),
-                              if (_showAdminTab)
+                            ),
+                            const SizedBox(height: 8),
+                            SegmentedButton<_RoleTab>(
+                              segments: [
                                 const ButtonSegment<_RoleTab>(
-                                  value: _RoleTab.admin,
-                                  icon: Icon(Icons.admin_panel_settings),
-                                  label: Text('Admin'),
+                                  value: _RoleTab.client,
+                                  icon: Icon(Icons.person),
+                                  label: Text('Client'),
                                 ),
-                            ],
-                            selected: {_roleTab},
-                            onSelectionChanged: (selected) {
-                              setState(() {
-                                _roleTab = selected.first;
-                                _showRegister = false;
-                                _showPublicShop = _roleTab == _RoleTab.client;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          if (widget.store.isLoading)
-                            const LinearProgressIndicator(),
-                          if (widget.store.isLoading)
-                            const SizedBox(height: 12),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            child: _roleTab == _RoleTab.admin
-                                ? _AdminLoginForm(
-                                    key: const ValueKey('admin-login'),
-                                    onLogin: _handleAdminLogin,
-                                  )
-                                : _showRegister
-                                ? RegisterPage(
-                                    key: const ValueKey('register'),
-                                    onRegister: _handleRegister,
-                                    onSwitchToLogin: () {
-                                      setState(() {
-                                        _showRegister = false;
-                                      });
-                                    },
-                                  )
-                                : LoginPage(
-                                    key: const ValueKey('login'),
-                                    onLogin: _handleClientLogin,
-                                    onSwitchToRegister: () {
-                                      setState(() {
-                                        _showRegister = true;
-                                      });
-                                    },
+                                if (_showAdminTab)
+                                  const ButtonSegment<_RoleTab>(
+                                    value: _RoleTab.admin,
+                                    icon: Icon(Icons.admin_panel_settings),
+                                    label: Text('Admin'),
                                   ),
-                          ),
-                          if (_roleTab == _RoleTab.client)
-                            TextButton(
-                              onPressed: () {
+                              ],
+                              selected: {_roleTab},
+                              onSelectionChanged: (selected) {
                                 setState(() {
-                                  _showPublicShop = true;
+                                  _roleTab = selected.first;
+                                  _showRegister = false;
+                                  _showPublicShop = _roleTab == _RoleTab.client;
                                 });
                               },
-                              child: const Text(
-                                'Browse products without login',
-                              ),
                             ),
-                          if (widget.store.errorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Text(
-                                widget.store.errorMessage!,
-                                style: const TextStyle(color: Colors.red),
-                              ),
+                            const SizedBox(height: 16),
+                            if (widget.store.isLoading)
+                              const LinearProgressIndicator(),
+                            if (widget.store.isLoading)
+                              const SizedBox(height: 12),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 350),
+                              switchInCurve: Curves.easeInOutCubic,
+                              switchOutCurve: Curves.easeInOutCubic,
+                              transitionBuilder: (child, animation) {
+                                final offset = Tween<Offset>(
+                                  begin: const Offset(-0.08, 0),
+                                  end: Offset.zero,
+                                ).animate(animation);
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: offset,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: _roleTab == _RoleTab.admin
+                                  ? _AdminLoginForm(
+                                      key: const ValueKey('admin-login'),
+                                      onLogin: _handleAdminLogin,
+                                    )
+                                  : _showRegister
+                                  ? RegisterPage(
+                                      key: const ValueKey('register'),
+                                      onRegister: _handleRegister,
+                                      onSwitchToLogin: () {
+                                        setState(() {
+                                          _showRegister = false;
+                                        });
+                                      },
+                                    )
+                                  : LoginPage(
+                                      key: const ValueKey('login'),
+                                      onLogin: _handleClientLogin,
+                                      onSwitchToRegister: () {
+                                        setState(() {
+                                          _showRegister = true;
+                                        });
+                                      },
+                                    ),
                             ),
-                        ],
+                            if (_roleTab == _RoleTab.client)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showPublicShop = true;
+                                  });
+                                },
+                                child: const Text(
+                                  'Browse products without login',
+                                ),
+                              ),
+                            if (widget.store.errorMessage != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Text(
+                                  widget.store.errorMessage!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

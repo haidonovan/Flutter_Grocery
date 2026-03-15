@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../store/grocery_store_state.dart';
+import '../widgets/entrance_motion.dart';
 import 'models.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -118,6 +119,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   Future<void> _deleteComment(ProductComment comment) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete comment?'),
+        content: const Text('This removes the comment permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true) {
+      return;
+    }
+
     final result = await widget.store.deleteComment(
       widget.product.id,
       comment.id,
@@ -136,6 +158,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget build(BuildContext context) {
     final canAdd =
         widget.cartQuantity < widget.product.stock && widget.product.stock > 0;
+    final messenger = ScaffoldMessenger.of(context);
 
     return AnimatedBuilder(
       animation: widget.store,
@@ -152,7 +175,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 expandedHeight: 320,
                 actions: [
                   IconButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (!widget.store.isAuthenticated) {
                         _ensureLogin();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +185,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         );
                         return;
                       }
-                      widget.store.toggleFavorite(widget.product.id);
+                      try {
+                        await widget.store.toggleFavorite(widget.product.id);
+                      } catch (error) {
+                        if (!mounted) {
+                          return;
+                        }
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(error.toString())),
+                        );
+                      }
                     },
                     icon: Icon(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -207,38 +239,46 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          Chip(label: Text(widget.product.category)),
-                          Chip(
-                            label: Text(
-                              widget.product.stock > 0
-                                  ? '${widget.product.stock} available'
-                                  : 'Out of stock',
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 80),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Chip(label: Text(widget.product.category)),
+                            Chip(
+                              label: Text(
+                                widget.product.stock > 0
+                                    ? '${widget.product.stock} available'
+                                    : 'Out of stock',
+                              ),
+                              backgroundColor: widget.product.stock > 0
+                                  ? Colors.green.withValues(alpha: 0.15)
+                                  : Colors.red.withValues(alpha: 0.15),
                             ),
-                            backgroundColor: widget.product.stock > 0
-                                ? Colors.green.withValues(alpha: 0.15)
-                                : Colors.red.withValues(alpha: 0.15),
-                          ),
-                          Chip(
-                            label: Text(
-                              '${widget.product.ratingAvg.toStringAsFixed(1)} * (${widget.product.ratingCount})',
+                            Chip(
+                              label: Text(
+                                '${widget.product.ratingAvg.toStringAsFixed(1)} * (${widget.product.ratingCount})',
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        widget.product.name,
-                        style: Theme.of(context).textTheme.headlineSmall,
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 160),
+                        child: Text(
+                          widget.product.name,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 220),
+                        child: Text(
+                          '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                       if (widget.product.isDiscountActive)
@@ -250,69 +290,82 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           ),
                         ),
                       const SizedBox(height: 16),
-                      Text(
-                        widget.product.description,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.copyWith(height: 1.4),
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 280),
+                        child: Text(
+                          widget.product.description,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(height: 1.4),
+                        ),
                       ),
                       const SizedBox(height: 24),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Theme.of(context).colorScheme.primaryContainer
-                                  .withValues(alpha: 0.95),
-                              Theme.of(context).colorScheme.secondaryContainer
-                                  .withValues(alpha: 0.82),
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 360),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Theme.of(context).colorScheme.primaryContainer
+                                    .withValues(alpha: 0.95),
+                                Theme.of(context).colorScheme.secondaryContainer
+                                    .withValues(alpha: 0.82),
+                              ],
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.28),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.local_shipping_outlined,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Free delivery over \$50',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Same-day pickup available for essentials and fresh items.',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.28),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(Icons.local_shipping_outlined),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Free delivery over \$50',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Same-day pickup available for essentials and fresh items.',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                       const SizedBox(height: 20),
-                      Text(
-                        'Rate this product',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 440),
+                        child: Text(
+                          'Rate this product',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -321,7 +374,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           final isActive =
                               widget.product.ratingAvg >= ratingValue;
                           return IconButton(
-                            onPressed: () {
+                            onPressed: () async {
                               if (!widget.store.isAuthenticated) {
                                 _ensureLogin();
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -331,10 +384,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 );
                                 return;
                               }
-                              widget.store.submitRating(
-                                widget.product.id,
-                                ratingValue,
-                              );
+                              try {
+                                await widget.store.submitRating(
+                                  widget.product.id,
+                                  ratingValue,
+                                );
+                              } catch (error) {
+                                if (!mounted) {
+                                  return;
+                                }
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(error.toString())),
+                                );
+                              }
                             },
                             icon: Icon(
                               isActive ? Icons.star : Icons.star_border,
@@ -344,9 +406,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         }),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Customer comments',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      EntranceMotion(
+                        delay: const Duration(milliseconds: 520),
+                        child: Text(
+                          'Customer comments',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       if (_loadingComments)
@@ -354,50 +419,59 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       else if (comments.isEmpty)
                         const Text('No comments yet. Be the first to comment.'),
                       const SizedBox(height: 8),
-                      ...comments.map((comment) {
+                      ...comments.asMap().entries.map((entry) {
+                        final comment = entry.value;
                         final canEdit =
                             widget.store.isAdmin ||
                             (widget.store.userId != null &&
                                 widget.store.userId == comment.userId);
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text(comment.userEmail),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(comment.message),
-                                const SizedBox(height: 6),
-                                Text(
-                                  comment.isEdited
-                                      ? 'Edited - ${comment.createdAt.toLocal()}'
-                                      : comment.createdAt.toLocal().toString(),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
+                        return EntranceMotion(
+                          delay: Duration(milliseconds: 560 + (entry.key * 50)),
+                          duration: const Duration(milliseconds: 760),
+                          child: Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              title: Text(comment.userEmail),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text(comment.message),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    comment.isEdited
+                                        ? 'Edited - ${comment.createdAt.toLocal()}'
+                                        : comment.createdAt
+                                              .toLocal()
+                                              .toString(),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                              trailing: canEdit
+                                  ? PopupMenuButton<String>(
+                                      onSelected: (value) {
+                                        if (value == 'edit') {
+                                          _editComment(comment);
+                                        } else if (value == 'delete') {
+                                          _deleteComment(comment);
+                                        }
+                                      },
+                                      itemBuilder: (context) => const [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text('Edit'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Delete'),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
                             ),
-                            trailing: canEdit
-                                ? PopupMenuButton<String>(
-                                    onSelected: (value) {
-                                      if (value == 'edit') {
-                                        _editComment(comment);
-                                      } else if (value == 'delete') {
-                                        _deleteComment(comment);
-                                      }
-                                    },
-                                    itemBuilder: (context) => const [
-                                      PopupMenuItem(
-                                        value: 'edit',
-                                        child: Text('Edit'),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'delete',
-                                        child: Text('Delete'),
-                                      ),
-                                    ],
-                                  )
-                                : null,
                           ),
                         );
                       }),
@@ -442,51 +516,79 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               ),
             ],
           ),
-          bottomNavigationBar: SafeArea(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
-                    Theme.of(context).colorScheme.surface,
-                    Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer.withValues(alpha: 0.45),
+          bottomNavigationBar: EntranceMotion(
+            delay: const Duration(milliseconds: 260),
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                      Theme.of(context).colorScheme.surface,
+                      Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.45),
+                    ],
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, -2),
+                    ),
                   ],
                 ),
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 420;
-                  if (compact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 420;
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Total',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          Text(
+                            '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: canAdd ? widget.onAddToCart : null,
+                            icon: const Icon(Icons.add_shopping_cart),
+                            label: Text(
+                              canAdd ? 'Add to cart' : 'Out of stock',
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
                       children: [
-                        Text(
-                          'Total',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Total'),
+                              Text(
+                                '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ],
+                          ),
                         ),
-                        Text(
-                          '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 12),
                         FilledButton.icon(
                           onPressed: canAdd ? widget.onAddToCart : null,
                           icon: const Icon(Icons.add_shopping_cart),
@@ -494,31 +596,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                       ],
                     );
-                  }
-
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Total'),
-                            Text(
-                              '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ],
-                        ),
-                      ),
-                      FilledButton.icon(
-                        onPressed: canAdd ? widget.onAddToCart : null,
-                        icon: const Icon(Icons.add_shopping_cart),
-                        label: Text(canAdd ? 'Add to cart' : 'Out of stock'),
-                      ),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
             ),
           ),

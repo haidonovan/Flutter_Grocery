@@ -49,114 +49,128 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
 
     final shouldCreate = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create coupon'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: codeController,
-                decoration: const InputDecoration(labelText: 'Code'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: audience,
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('Everyone')),
-                  DropdownMenuItem(value: 'user', child: Text('Specific user')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    audience = value;
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              if (audience == 'user')
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Create coupon'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 TextField(
-                  controller: userEmailController,
-                  decoration: const InputDecoration(labelText: 'User email'),
+                  controller: codeController,
+                  decoration: const InputDecoration(labelText: 'Code'),
                 ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                items: const [
-                  DropdownMenuItem(value: 'percent', child: Text('Percent')),
-                  DropdownMenuItem(value: 'amount', child: Text('Amount')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    type = value;
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: valueController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 8),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description'),
                 ),
-                decoration: const InputDecoration(labelText: 'Value'),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => pickDate(true),
-                    icon: const Icon(Icons.calendar_today),
-                    label: Text(
-                      startsAt == null
-                          ? 'Start date'
-                          : startsAt!.toLocal().toString().split(' ').first,
-                    ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: audience,
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Everyone')),
+                    DropdownMenuItem(value: 'user', child: Text('Specific user')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => audience = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (audience == 'user')
+                  TextField(
+                    controller: userEmailController,
+                    decoration: const InputDecoration(labelText: 'User email'),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => pickDate(false),
-                    icon: const Icon(Icons.event),
-                    label: Text(
-                      endsAt == null
-                          ? 'End date'
-                          : endsAt!.toLocal().toString().split(' ').first,
-                    ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: type,
+                  items: const [
+                    DropdownMenuItem(value: 'percent', child: Text('Percent')),
+                    DropdownMenuItem(value: 'amount', child: Text('Amount')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => type = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: valueController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ],
-              ),
-            ],
+                  decoration: const InputDecoration(labelText: 'Value'),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await pickDate(true);
+                        if (mounted) {
+                          setDialogState(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text(
+                        startsAt == null
+                            ? 'Start date'
+                            : startsAt!.toLocal().toString().split(' ').first,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await pickDate(false);
+                        if (mounted) {
+                          setDialogState(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.event),
+                      label: Text(
+                        endsAt == null
+                            ? 'End date'
+                            : endsAt!.toLocal().toString().split(' ').first,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Create'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Create'),
-          ),
-        ],
       ),
     );
 
     if (shouldCreate == true) {
       final value = double.tryParse(valueController.text.trim()) ?? 0;
-      await widget.store.createCoupon(
-        code: codeController.text.trim(),
-        type: type,
-        value: value,
-        audience: audience,
-        description: descriptionController.text.trim(),
-        startsAt: startsAt,
-        endsAt: endsAt,
-        userEmail: userEmailController.text.trim(),
-      );
+      await _runCouponAction(() async {
+        await widget.store.createCoupon(
+          code: codeController.text.trim(),
+          type: type,
+          value: value,
+          audience: audience,
+          description: descriptionController.text.trim(),
+          startsAt: startsAt,
+          endsAt: endsAt,
+          userEmail: userEmailController.text.trim(),
+        );
+      }, successMessage: 'Coupon created.');
     }
   }
 
@@ -195,91 +209,165 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
 
     final shouldSave = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit ${coupon.code}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                title: const Text('Active'),
-                value: isActive,
-                onChanged: (value) {
-                  isActive = value;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: audience,
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('Everyone')),
-                  DropdownMenuItem(value: 'user', child: Text('Specific user')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    audience = value;
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              if (audience == 'user')
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit ${coupon.code}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('Active'),
+                  value: isActive,
+                  onChanged: (value) {
+                    setDialogState(() => isActive = value);
+                  },
+                ),
+                const SizedBox(height: 8),
                 TextField(
-                  controller: userEmailController,
-                  decoration: const InputDecoration(labelText: 'User email'),
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description'),
                 ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                items: const [
-                  DropdownMenuItem(value: 'percent', child: Text('Percent')),
-                  DropdownMenuItem(value: 'amount', child: Text('Amount')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    type = value;
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: valueController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: audience,
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Everyone')),
+                    DropdownMenuItem(value: 'user', child: Text('Specific user')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => audience = value);
+                    }
+                  },
                 ),
-                decoration: const InputDecoration(labelText: 'Value'),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => pickDate(true),
-                    icon: const Icon(Icons.calendar_today),
-                    label: Text(
-                      startsAt == null
-                          ? 'Start date'
-                          : startsAt!.toLocal().toString().split(' ').first,
-                    ),
+                const SizedBox(height: 8),
+                if (audience == 'user')
+                  TextField(
+                    controller: userEmailController,
+                    decoration: const InputDecoration(labelText: 'User email'),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => pickDate(false),
-                    icon: const Icon(Icons.event),
-                    label: Text(
-                      endsAt == null
-                          ? 'End date'
-                          : endsAt!.toLocal().toString().split(' ').first,
-                    ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: type,
+                  items: const [
+                    DropdownMenuItem(value: 'percent', child: Text('Percent')),
+                    DropdownMenuItem(value: 'amount', child: Text('Amount')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => type = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: valueController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ],
-              ),
-            ],
+                  decoration: const InputDecoration(labelText: 'Value'),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await pickDate(true);
+                        if (mounted) {
+                          setDialogState(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text(
+                        startsAt == null
+                            ? 'Start date'
+                            : startsAt!.toLocal().toString().split(' ').first,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await pickDate(false);
+                        if (mounted) {
+                          setDialogState(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.event),
+                      label: Text(
+                        endsAt == null
+                            ? 'End date'
+                            : endsAt!.toLocal().toString().split(' ').first,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (shouldSave == true) {
+      final value =
+          double.tryParse(valueController.text.trim()) ?? coupon.value;
+      await _runCouponAction(() async {
+        await widget.store.updateCoupon(
+          id: coupon.id,
+          isActive: isActive,
+          type: type,
+          value: value,
+          audience: audience,
+          description: descriptionController.text.trim(),
+          startsAt: startsAt,
+          endsAt: endsAt,
+          userEmail: userEmailController.text.trim(),
+        );
+      }, successMessage: 'Coupon updated.');
+    }
+  }
+
+  Future<void> _runCouponAction(
+    Future<void> Function() action, {
+    required String successMessage,
+  }) async {
+    try {
+      await action();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _deleteCoupon(Coupon coupon) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete ${coupon.code}?'),
+        content: const Text(
+          'This removes that coupon code from the system. Existing orders will stay unchanged.',
         ),
         actions: [
           TextButton(
@@ -288,27 +376,16 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Save'),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
-
-    if (shouldSave == true) {
-      final value =
-          double.tryParse(valueController.text.trim()) ?? coupon.value;
-      await widget.store.updateCoupon(
-        id: coupon.id,
-        isActive: isActive,
-        type: type,
-        value: value,
-        audience: audience,
-        description: descriptionController.text.trim(),
-        startsAt: startsAt,
-        endsAt: endsAt,
-        userEmail: userEmailController.text.trim(),
-      );
+    if (shouldDelete != true) {
+      return;
     }
+
+    await _runCouponAction(() => widget.store.deleteCoupon(coupon.id), successMessage: 'Coupon deleted.');
   }
 
   Future<void> _pickDateRange() async {
@@ -645,8 +722,8 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                             children: [
                               Switch(
                                 value: coupon.isActive,
-                                onChanged: (value) {
-                                  widget.store.updateCoupon(
+                                onChanged: (value) async {
+                                  await _runCouponAction(() => widget.store.updateCoupon(
                                     id: coupon.id,
                                     isActive: value,
                                     type: coupon.type,
@@ -656,7 +733,7 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                                     startsAt: coupon.startsAt,
                                     endsAt: coupon.endsAt,
                                     userEmail: coupon.userEmail,
-                                  );
+                                  ), successMessage: value ? 'Coupon activated.' : 'Coupon deactivated.');
                                 },
                               ),
                               IconButton(
@@ -665,8 +742,7 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                                 icon: const Icon(Icons.edit_outlined),
                               ),
                               IconButton(
-                                onPressed: () =>
-                                    widget.store.deleteCoupon(coupon.id),
+                                onPressed: () => _deleteCoupon(coupon),
                                 icon: const Icon(Icons.delete_outline),
                               ),
                             ],

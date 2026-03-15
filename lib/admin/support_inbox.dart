@@ -18,6 +18,7 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
   String _status = 'All';
   String _sort = 'Newest';
   DateTimeRange? _dateRange;
+  final Set<int> _busyTicketIds = <int>{};
 
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
@@ -104,6 +105,106 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
               : 'CSV export is available on web builds.',
         ),
       ),
+    );
+  }
+
+  Future<void> _runTicketAction(
+    int ticketId,
+    Future<void> Function() action, {
+    required String successMessage,
+  }) async {
+    if (_busyTicketIds.contains(ticketId)) {
+      return;
+    }
+
+    setState(() => _busyTicketIds.add(ticketId));
+    try {
+      await action();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _busyTicketIds.remove(ticketId));
+      }
+    }
+  }
+
+  Future<void> _replyToTicket(SupportTicket ticket) async {
+    final controller = TextEditingController(text: ticket.adminReply ?? '');
+    final reply = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reply to ticket'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'Type your reply',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Send reply'),
+          ),
+        ],
+      ),
+    );
+    if (reply == null || reply.length < 3) {
+      return;
+    }
+
+    await _runTicketAction(
+      ticket.id,
+      () => widget.store.replySupportTicket(ticket.id, reply),
+      successMessage: 'Reply sent to ${ticket.userEmail}.',
+    );
+  }
+
+  Future<void> _closeTicket(SupportTicket ticket) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Close ticket?'),
+        content: Text(
+          'Close "${ticket.subject}" for ${ticket.userEmail}? The client will no longer be able to reply.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Close ticket'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    await _runTicketAction(
+      ticket.id,
+      () => widget.store.closeSupportTicket(ticket.id),
+      successMessage: 'Ticket closed.',
     );
   }
 
@@ -314,74 +415,36 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
                                         ],
                                       ),
                                     ),
-                                    PopupMenuButton<String>(
-                                      onSelected: (value) async {
-                                        if (value == 'reply') {
-                                          final controller =
-                                              TextEditingController(
-                                                text: ticket.adminReply ?? '',
-                                              );
-                                          final reply = await showDialog<String>(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: const Text(
-                                                'Reply to ticket',
-                                              ),
-                                              content: TextField(
-                                                controller: controller,
-                                                maxLines: 4,
-                                                decoration:
-                                                    const InputDecoration(
-                                                      border:
-                                                          OutlineInputBorder(),
-                                                      hintText:
-                                                          'Type your reply',
-                                                    ),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.of(
-                                                    context,
-                                                  ).pop(),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                FilledButton(
-                                                  onPressed: () => Navigator.of(
-                                                    context,
-                                                  ).pop(controller.text.trim()),
-                                                  child: const Text(
-                                                    'Send reply',
-                                                  ),
-                                                ),
-                                              ],
+                                    _busyTicketIds.contains(ticket.id)
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
                                             ),
-                                          );
-                                          if (reply != null &&
-                                              reply.length >= 3) {
-                                            await widget.store
-                                                .replySupportTicket(
-                                                  ticket.id,
-                                                  reply,
-                                                );
-                                          }
-                                        } else if (value == 'close') {
-                                          await widget.store.closeSupportTicket(
-                                            ticket.id,
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem(
-                                          value: 'reply',
-                                          child: Text('Reply'),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'close',
-                                          enabled: ticket.status != 'closed',
-                                          child: const Text('Close ticket'),
-                                        ),
-                                      ],
-                                    ),
+                                          )
+                                        : PopupMenuButton<String>(
+                                            onSelected: (value) async {
+                                              if (value == 'reply') {
+                                                await _replyToTicket(ticket);
+                                              } else if (value == 'close') {
+                                                await _closeTicket(ticket);
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              const PopupMenuItem(
+                                                value: 'reply',
+                                                child: Text('Reply'),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'close',
+                                                enabled:
+                                                    ticket.status != 'closed',
+                                                child:
+                                                    const Text('Close ticket'),
+                                              ),
+                                            ],
+                                          ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),

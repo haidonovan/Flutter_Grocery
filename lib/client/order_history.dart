@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/entrance_motion.dart';
 import '../widgets/skeleton.dart';
 import 'models.dart';
 
@@ -155,111 +156,140 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 760;
-              final search = TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search order ID, address, payment, product',
-                  prefixIcon: Icon(Icons.search, color: scheme.primary),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () => setState(() => _query = ''),
-                          icon: const Icon(Icons.close),
-                        ),
-                  filled: true,
-                  fillColor: scheme.surfaceContainerHighest,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+        EntranceMotion(
+          delay: const Duration(milliseconds: 80),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 760;
+                final search = TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search order ID, address, payment, product',
+                    prefixIcon: Icon(Icons.search, color: scheme.primary),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () => setState(() => _query = ''),
+                            icon: const Icon(Icons.close),
+                          ),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                ),
-                onChanged: (value) => setState(() => _query = value),
-              );
+                  onChanged: (value) => setState(() => _query = value),
+                );
 
-              final status = DropdownButtonFormField<String>(
-                initialValue: _status,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: scheme.surfaceContainerHighest,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                final status = DropdownButtonFormField<String>(
+                  initialValue: _status,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'All', child: Text('All status')),
-                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                  DropdownMenuItem(
-                    value: 'processing',
-                    child: Text('Processing'),
-                  ),
-                  DropdownMenuItem(value: 'shipped', child: Text('Shipped')),
-                  DropdownMenuItem(
-                    value: 'delivered',
-                    child: Text('Delivered'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'cancelled',
-                    child: Text('Cancelled'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _status = value);
-                  }
-                },
-              );
+                  items: const [
+                    DropdownMenuItem(value: 'All', child: Text('All status')),
+                    DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                    DropdownMenuItem(
+                      value: 'processing',
+                      child: Text('Processing'),
+                    ),
+                    DropdownMenuItem(value: 'shipped', child: Text('Shipped')),
+                    DropdownMenuItem(
+                      value: 'delivered',
+                      child: Text('Delivered'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'cancelled',
+                      child: Text('Cancelled'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _status = value);
+                    }
+                  },
+                );
 
-              final sortField = DropdownButtonFormField<String>(
-                initialValue: _sort,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: scheme.surfaceContainerHighest,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                final sortField = DropdownButtonFormField<String>(
+                  initialValue: _sort,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'Newest', child: Text('Newest')),
-                  DropdownMenuItem(value: 'Oldest', child: Text('Oldest')),
-                  DropdownMenuItem(
-                    value: 'Total high-low',
-                    child: Text('Total high-low'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Total low-high',
-                    child: Text('Total low-high'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _sort = value);
-                  }
-                },
-              );
+                  items: const [
+                    DropdownMenuItem(value: 'Newest', child: Text('Newest')),
+                    DropdownMenuItem(value: 'Oldest', child: Text('Oldest')),
+                    DropdownMenuItem(
+                      value: 'Total high-low',
+                      child: Text('Total high-low'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Total low-high',
+                      child: Text('Total low-high'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _sort = value);
+                    }
+                  },
+                );
 
-              final dateText = _dateRange == null
-                  ? 'Date range'
-                  : '${_dateRange!.start.month}/${_dateRange!.start.day} - ${_dateRange!.end.month}/${_dateRange!.end.day}';
+                final dateText = _dateRange == null
+                    ? 'Date range'
+                    : '${_dateRange!.start.month}/${_dateRange!.start.day} - ${_dateRange!.end.month}/${_dateRange!.end.day}';
 
-              if (compact) {
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      search,
+                      const SizedBox(height: 10),
+                      status,
+                      const SizedBox(height: 10),
+                      sortField,
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _pickDateRange,
+                            icon: const Icon(Icons.date_range),
+                            label: Text(dateText),
+                          ),
+                          if (_dateRange != null)
+                            TextButton(
+                              onPressed: () =>
+                                  setState(() => _dateRange = null),
+                              child: const Text('Clear'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     search,
                     const SizedBox(height: 10),
-                    status,
-                    const SizedBox(height: 10),
-                    sortField,
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
+                    Row(
                       children: [
+                        Expanded(child: status),
+                        const SizedBox(width: 10),
+                        Expanded(child: sortField),
+                        const SizedBox(width: 10),
                         OutlinedButton.icon(
                           onPressed: _pickDateRange,
                           icon: const Icon(Icons.date_range),
@@ -274,33 +304,8 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                     ),
                   ],
                 );
-              }
-
-              return Column(
-                children: [
-                  search,
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(child: status),
-                      const SizedBox(width: 10),
-                      Expanded(child: sortField),
-                      const SizedBox(width: 10),
-                      OutlinedButton.icon(
-                        onPressed: _pickDateRange,
-                        icon: const Icon(Icons.date_range),
-                        label: Text(dateText),
-                      ),
-                      if (_dateRange != null)
-                        TextButton(
-                          onPressed: () => setState(() => _dateRange = null),
-                          child: const Text('Clear'),
-                        ),
-                    ],
-                  ),
-                ],
-              );
-            },
+              },
+            ),
           ),
         ),
         Expanded(
@@ -311,148 +316,154 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final order = orders[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ExpansionTile(
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Order ${order.id}',
-                                maxLines: 1,
+                    return EntranceMotion(
+                      delay: Duration(milliseconds: 120 + (index * 55)),
+                      duration: const Duration(milliseconds: 820),
+                      child: Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ExpansionTile(
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Order ${order.id}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '\$${order.total.toStringAsFixed(2)}',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${_formatDate(order.createdAt)} - ${_statusText(order.status)}',
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                '\$${order.total.toStringAsFixed(2)}',
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${_formatDate(order.createdAt)} - ${_statusText(order.status)}',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _statusColor(
-                                  order.status,
-                                ).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _statusText(order.status),
-                                style: TextStyle(
-                                  color: _statusColor(order.status),
-                                  fontSize: 12,
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        childrenPadding: const EdgeInsets.fromLTRB(
-                          16,
-                          0,
-                          16,
-                          16,
-                        ),
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text('Payment: ${order.paymentMethod}'),
-                          ),
-                          if (order.couponCode != null &&
-                              order.couponDiscount != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
+                                decoration: BoxDecoration(
+                                  color: _statusColor(
+                                    order.status,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 child: Text(
-                                  'Coupon ${order.couponCode}: -\$${order.couponDiscount!.toStringAsFixed(2)}',
+                                  _statusText(order.status),
+                                  style: TextStyle(
+                                    color: _statusColor(order.status),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          childrenPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            0,
+                            16,
+                            16,
+                          ),
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Payment: ${order.paymentMethod}'),
+                            ),
+                            if (order.couponCode != null &&
+                                order.couponDiscount != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Coupon ${order.couponCode}: -\$${order.couponDiscount!.toStringAsFixed(2)}',
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Address: ${order.shippingAddress}'),
+                            ),
+                            if (order.trackingNumber != null ||
+                                order.trackingCarrier != null ||
+                                order.trackingStatus != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Tracking: ${order.trackingCarrier ?? 'Carrier'}',
+                                    ),
+                                    if (order.trackingNumber != null)
+                                      Text('Number: ${order.trackingNumber}'),
+                                    if (order.trackingStatus != null)
+                                      Text('Status: ${order.trackingStatus}'),
+                                    if (order.trackingUpdatedAt != null)
+                                      Text(
+                                        'Updated: ${_formatDate(order.trackingUpdatedAt!)}',
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 10),
+                            const Divider(height: 1),
+                            const SizedBox(height: 10),
+                            ...order.lines.map(
+                              (line) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Wrap(
+                                  spacing: 12,
+                                  runSpacing: 4,
+                                  alignment: WrapAlignment.spaceBetween,
+                                  children: [
+                                    SizedBox(
+                                      width: 220,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${line.productName} x${line.quantity}',
+                                          ),
+                                          if (line.discountPercent > 0)
+                                            Text(
+                                              'Discount ${line.discountPercent.toStringAsFixed(0)}%',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      '\$${line.subtotal.toStringAsFixed(2)}',
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text('Address: ${order.shippingAddress}'),
-                          ),
-                          if (order.trackingNumber != null ||
-                              order.trackingCarrier != null ||
-                              order.trackingStatus != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Tracking: ${order.trackingCarrier ?? 'Carrier'}',
-                                  ),
-                                  if (order.trackingNumber != null)
-                                    Text('Number: ${order.trackingNumber}'),
-                                  if (order.trackingStatus != null)
-                                    Text('Status: ${order.trackingStatus}'),
-                                  if (order.trackingUpdatedAt != null)
-                                    Text(
-                                      'Updated: ${_formatDate(order.trackingUpdatedAt!)}',
-                                    ),
-                                ],
-                              ),
-                            ),
-                          const SizedBox(height: 10),
-                          const Divider(height: 1),
-                          const SizedBox(height: 10),
-                          ...order.lines.map(
-                            (line) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Wrap(
-                                spacing: 12,
-                                runSpacing: 4,
-                                alignment: WrapAlignment.spaceBetween,
-                                children: [
-                                  SizedBox(
-                                    width: 220,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${line.productName} x${line.quantity}',
-                                        ),
-                                        if (line.discountPercent > 0)
-                                          Text(
-                                            'Discount ${line.discountPercent.toStringAsFixed(0)}%',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text('\$${line.subtotal.toStringAsFixed(2)}'),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },

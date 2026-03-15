@@ -1,0 +1,82 @@
+﻿name,category,description,price,stock,imageUrl,discountPercent,discountStart,discountEnd,isActive
+Roma Tomatoes,vegetables,Juicy roma tomatoes for pasta sauces and salads,2.79,96,https://images.unsplash.com/photo-1546094096-0df4bcaaa337?auto=format&fit=crop&w=900&q=80,0,,,true
+Green Cabbage,vegetables,Dense green cabbage great for stir fry and soup,2.49,72,https://images.unsplash.com/photo-1615485500704-8e990f9900f7?auto=format&fit=crop&w=900&q=80,0,,,true
+Red Bell Peppers,vegetables,Sweet crisp red peppers perfect for roasting,3.69,64,https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?auto=format&fit=crop&w=900&q=80,8,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Cauliflower Head,vegetables,Fresh cauliflower with tight florets and mild flavor,4.19,58,https://images.unsplash.com/photo-1510627498534-cf7e9002facc?auto=format&fit=crop&w=900&q=80,0,,,true
+Zucchini Pack,vegetables,Tender zucchini ideal for grilling and sauteing,2.59,76,https://images.unsplash.com/photo-1583663848850-46af132dc08e?auto=format&fit=crop&w=900&q=80,0,,,true
+English Cucumbers,vegetables,Cool and crunchy cucumbers for sandwiches and salads,2.39,90,https://images.unsplash.com/photo-1604977042946-1eecc30f269e?auto=format&fit=crop&w=900&q=80,0,,,true
+Sweet Corn,vegetables,Golden sweet corn ready for boiling or grilling,3.29,88,https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=900&q=80,6,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Iceberg Lettuce,vegetables,Crisp iceberg lettuce for burgers and wraps,1.99,94,https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?auto=format&fit=crop&w=900&q=80,0,,,true
+Bok Choy,vegetables,Fresh bok choy with tender stems and leafy tops,3.19,52,https://images.unsplash.com/photo-1628773822503-930a7eaecf80?auto=format&fit=crop&w=900&q=80,0,,,true
+Purple Eggplant,vegetables,Glossy eggplant suited for roasting and curry dishes,2.89,49,https://images.unsplash.com/photo-1603046891744-7611d8c84f73?auto=format&fit=crop&w=900&q=80,0,,,true
+Green Beans,vegetables,Snappy green beans for side dishes and stir fry,3.09,61,https://images.unsplash.com/photo-1567375698348-5d9d5ae99de0?auto=format&fit=crop&w=900&q=80,0,,,true
+White Mushrooms,vegetables,Fresh button mushrooms with earthy flavor,3.79,67,https://images.unsplash.com/photo-1504544750208-dc0358e63f7f?auto=format&fit=crop&w=900&q=80,5,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Celery Hearts,vegetables,Crunchy celery stalks for soups and snacks,2.29,54,https://images.unsplash.com/photo-1518843875459-f738682238a6?auto=format&fit=crop&w=900&q=80,0,,,true
+Russet Potatoes,vegetables,Hearty russet potatoes for fries mash and baking,4.49,110,https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=900&q=80,0,,,true
+Yellow Onions,vegetables,Versatile yellow onions for savory cooking,2.19,132,https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&w=900&q=80,0,,,true
+Garlic Bulbs,vegetables,Aromatic garlic bulbs for bold everyday flavor,1.69,140,https://images.unsplash.com/photo-1615477550927-6ec6ef3a3d65?auto=format&fit=crop&w=900&q=80,0,,,true
+Navel Oranges,fruits,Sweet navel oranges packed with bright citrus flavor,4.09,118,https://images.unsplash.com/photo-1547514701-42782101795e?auto=format&fit=crop&w=900&q=80,0,,,true
+Strawberries Box,fruits,Fresh strawberries with a sweet juicy finish,5.79,74,https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&w=900&q=80,10,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Blueberries Pack,fruits,Plump blueberries for yogurt parfaits and baking,4.99,68,https://images.unsplash.com/photo-1498557850523-fd3d118b962e?auto=format&fit=crop&w=900&q=80,0,,,true
+Mangoes,fruits,Ripe mangoes with tropical sweetness and soft texture,3.59,80,https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=900&q=80,0,,,true
+Pineapple,fruits,Whole pineapple with fragrant golden flesh,4.89,42,https://images.unsplash.com/photo-1589820296156-2454bb8a6ad1?auto=format&fit=crop&w=900&q=80,0,,,true
+Kiwi Pack,fruits,Tangy kiwi fruit ideal for salads and smoothies,3.69,63,https://images.unsplash.com/photo-1618897996318-5a901fa6ca71?auto=format&fit=crop&w=900&q=80,0,,,true
+Watermelon Slices,fruits,Chilled watermelon slices with refreshing sweetness,6.49,36,https://images.unsplash.com/photo-1563114773-84221bd62daa?auto=format&fit=crop&w=900&q=80,8,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Lemons Bag,fruits,Bright lemons for drinks dressings and baking,2.99,92,https://images.unsplash.com/photo-1590502593747-42a996133562?auto=format&fit=crop&w=900&q=80,0,,,true
+Limes Bag,fruits,Fresh limes perfect for marinades and beverages,2.89,88,https://images.unsplash.com/photo-1582284540020-8acbe03f4924?auto=format&fit=crop&w=900&q=80,0,,,true
+Avocados,fruits,Creamy avocados ready for toast salads and dips,5.29,57,https://images.unsplash.com/photo-1519162808019-7de1683fa2ad?auto=format&fit=crop&w=900&q=80,0,,,true
+Pears,fruits,Smooth ripe pears with mellow sweetness,4.39,71,https://images.unsplash.com/photo-1514756331096-242fdeb70d4a?auto=format&fit=crop&w=900&q=80,0,,,true
+Peaches,fruits,Juicy peaches with fragrant tender flesh,4.89,59,https://images.unsplash.com/photo-1629828874514-85b7e7f085d1?auto=format&fit=crop&w=900&q=80,7,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Plums,fruits,Sweet tart plums for snacking and desserts,3.99,64,https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=900&q=80,0,,,true
+Raspberries Pack,fruits,Delicate raspberries with bold berry flavor,5.49,44,https://images.unsplash.com/photo-1577069861033-55d04cec4ef5?auto=format&fit=crop&w=900&q=80,0,,,true
+Blackberries Pack,fruits,Fresh blackberries packed with deep sweetness,5.59,41,https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=900&q=80,0,,,true
+Ground Beef,meat,Fresh ground beef suitable for burgers pasta and tacos,8.49,62,https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=900&q=80,0,,,true
+Pork Chops,meat,Tender pork chops ready for pan searing or grilling,9.29,47,https://images.unsplash.com/photo-1603360946369-dc9bb6258143?auto=format&fit=crop&w=900&q=80,0,,,true
+Turkey Breast,meat,Lean turkey breast slices for roasting or sandwiches,8.99,40,https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80,6,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Lamb Cutlets,meat,Premium lamb cutlets with rich savory flavor,15.99,29,https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=900&q=80,0,,,true
+Shrimp Pack,meat,Peeled shrimp ideal for stir fry pasta and skewers,11.49,53,https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=900&q=80,0,,,true
+Tilapia Fillet,meat,Mild white fish fillet for quick weeknight dinners,9.19,38,https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=900&q=80,0,,,true
+Chicken Wings,meat,Meaty chicken wings for baking frying or air frying,6.99,72,https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=900&q=80,10,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Smoked Sausage,meat,Savory smoked sausage links with bold seasoning,5.89,66,https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80,0,,,true
+Bacon Strips,meat,Crispy bacon strips with smoky flavor,6.79,58,https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&w=900&q=80,0,,,true
+Duck Breast,meat,Rich duck breast for special meals and searing,13.49,22,https://images.unsplash.com/photo-1518492104633-130d0cc84637?auto=format&fit=crop&w=900&q=80,0,,,true
+Beef Short Ribs,meat,Marbled short ribs for braising and slow cooking,14.29,31,https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80,5,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Pork Belly,meat,Rich pork belly for roasting and ramen dishes,10.89,27,https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=900&q=80,0,,,true
+Cod Fillet,meat,Flaky cod fillet with clean mild flavor,10.29,34,https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=900&q=80,0,,,true
+Chicken Drumsticks,meat,Juicy drumsticks for roasting and barbecue,5.99,81,https://images.unsplash.com/photo-1518492104633-130d0cc84637?auto=format&fit=crop&w=900&q=80,0,,,true
+Mussels Pack,meat,Fresh mussels for seafood pasta and soups,7.49,26,https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=900&q=80,0,,,true
+Tuna Steak,meat,Firm tuna steak for searing and salads,12.99,24,https://images.unsplash.com/photo-1544943910-4c1dc44aab44?auto=format&fit=crop&w=900&q=80,7,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Basmati Rice,grains,Aromatic basmati rice with long fluffy grains,9.49,84,https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=900&q=80,0,,,true
+Quinoa White,grains,Protein rich white quinoa for bowls and salads,6.39,51,https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=80,0,,,true
+Whole Wheat Pasta,grains,Nutty whole wheat pasta for hearty meals,2.99,96,https://images.unsplash.com/photo-1551462147-ff29053bfc14?auto=format&fit=crop&w=900&q=80,0,,,true
+Spaghetti,grains,Classic spaghetti pasta for simple dinners,2.49,112,https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=900&q=80,0,,,true
+Couscous,grains,Light couscous grains for quick side dishes,3.59,58,https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&w=900&q=80,0,,,true
+Barley Pearled,grains,Pearled barley for soups pilaf and risotto,4.19,45,https://images.unsplash.com/photo-1515543904379-3d757afe72e3?auto=format&fit=crop&w=900&q=80,0,,,true
+Cornmeal,grains,Fine cornmeal for breads porridge and coating,2.89,67,https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80,0,,,true
+Breadcrumbs,grains,Golden breadcrumbs for coating and casseroles,2.39,74,https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80,0,,,true
+Tortilla Wraps,grains,Soft flour wraps for burritos and sandwiches,3.99,69,https://images.unsplash.com/photo-1615870216519-2f9fa575fa5c?auto=format&fit=crop&w=900&q=80,5,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Bagel Pack,grains,Fresh bagels with chewy texture and rich flavor,4.79,36,https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80,0,,,true
+Brown Rice,grains,Whole grain brown rice with nutty aroma,8.19,63,https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=80,0,,,true
+Arborio Rice,grains,Creamy arborio rice for risotto dishes,5.49,40,https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=900&q=80,0,,,true
+Multigrain Bread,grains,Sliced multigrain bread for breakfast and sandwiches,3.69,44,https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80,0,,,true
+Rice Noodles,grains,Light rice noodles for soups and stir fry,3.29,55,https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=900&q=80,0,,,true
+Granola Clusters,grains,Crunchy granola clusters for yogurt and milk,5.19,48,https://images.unsplash.com/photo-1515543904379-3d757afe72e3?auto=format&fit=crop&w=900&q=80,8,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Pita Bread,grains,Soft pita pockets for dips and wraps,3.49,52,https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80,0,,,true
+Greek Yogurt,Dairy,Creamy Greek yogurt high in protein,4.59,64,https://images.unsplash.com/photo-1488477181946-6428a6ca?auto=format&fit=crop&w=900&q=80,0,,,true
+Cheddar Cheese,Dairy,Sharp cheddar cheese block for slicing and melting,5.29,57,https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=900&q=80,0,,,true
+Butter Unsalted,Dairy,Unsalted butter for cooking and baking,3.89,86,https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?auto=format&fit=crop&w=900&q=80,0,,,true
+Heavy Cream,Dairy,Rich heavy cream for sauces and desserts,2.99,49,https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=900&q=80,0,,,true
+Mozzarella,Dairy,Mild mozzarella cheese for pizza and pasta,4.99,42,https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=900&q=80,7,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Vanilla Yogurt,Dairy,Smooth vanilla yogurt for breakfast bowls,3.49,71,https://images.unsplash.com/photo-1488477181946-6428a6ca?auto=format&fit=crop&w=900&q=80,0,,,true
+Sour Cream,Dairy,Tangy sour cream for toppings and dips,2.79,46,https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=900&q=80,0,,,true
+Cottage Cheese,Dairy,Fresh cottage cheese with light creamy texture,3.69,39,https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=900&q=80,0,,,true
+Cream Cheese,Dairy,Spreadable cream cheese for bagels and baking,3.19,54,https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=900&q=80,0,,,true
+Parmesan Wedge,Dairy,Aged parmesan wedge for pasta and salads,6.19,33,https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=900&q=80,0,,,true
+Low Fat Milk 1L,Dairy,Light low fat milk for daily use,1.89,77,https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=80,0,,,true
+Chocolate Milk 1L,Dairy,Chocolate flavored milk chilled and ready to drink,2.49,43,https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=80,0,,,true
+Yogurt Drink,Dairy,Cultured yogurt drink with fruity taste,2.29,59,https://images.unsplash.com/photo-1488477181946-6428a6ca?auto=format&fit=crop&w=900&q=80,0,,,true
+Whipping Cream,Dairy,Light whipping cream for desserts and toppings,3.09,34,https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=900&q=80,0,,,true
+Swiss Cheese,Dairy,Nutty Swiss cheese slices for sandwiches,4.89,37,https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=900&q=80,0,,,true
+Provolone Slices,Dairy,Mild provolone slices with smooth melt,4.59,41,https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=900&q=80,5,2026-03-16T00:00:00.000Z,2026-03-30T23:59:59.000Z,true
+Kefir Plain,Dairy,Probiotic kefir drink with tangy profile,3.79,29,https://images.unsplash.com/photo-1488477181946-6428a6ca?auto=format&fit=crop&w=900&q=80,0,,,true
+Ricotta Tub,Dairy,Soft ricotta cheese for pasta and desserts,4.29,26,https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=900&q=80,0,,,true

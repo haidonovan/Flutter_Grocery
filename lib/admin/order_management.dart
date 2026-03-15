@@ -127,6 +127,7 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     BuildContext context,
     OrderRecord order,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
     final numberController = TextEditingController(
       text: order.trackingNumber ?? '',
     );
@@ -174,12 +175,44 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     );
 
     if (shouldSave == true) {
-      await widget.store.updateOrderTracking(
-        orderId: order.id,
-        trackingCarrier: carrierController.text.trim(),
-        trackingNumber: numberController.text.trim(),
-        trackingStatus: statusController.text.trim(),
+      try {
+        await widget.store.updateOrderTracking(
+          orderId: order.id,
+          trackingCarrier: carrierController.text.trim(),
+          trackingNumber: numberController.text.trim(),
+          trackingStatus: statusController.text.trim(),
+        );
+        if (!mounted) {
+          return;
+        }
+        messenger.showSnackBar(
+          SnackBar(content: Text('Tracking updated for ${order.id}.')),
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
+  }
+
+  Future<void> _updateStatus(OrderRecord order, OrderStatus next) async {
+    try {
+      await widget.store.updateOrderStatus(order.id, next);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order ${order.id} marked ${next.name}.')),
       );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -307,12 +340,9 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                               child: DropdownButtonFormField<OrderStatus>(
                                 initialValue: order.status,
                                 items: _statusItems,
-                                onChanged: (next) {
+                                onChanged: (next) async {
                                   if (next != null) {
-                                    widget.store.updateOrderStatus(
-                                      order.id,
-                                      next,
-                                    );
+                                    await _updateStatus(order, next);
                                   }
                                 },
                               ),

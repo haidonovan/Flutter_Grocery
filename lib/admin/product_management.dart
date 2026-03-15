@@ -6,6 +6,9 @@ import 'package:flutter/services.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
+import '../utils/csv_export.dart';
+import '../widgets/app_page_route.dart';
+import '../widgets/entrance_motion.dart';
 import '../widgets/skeleton.dart';
 import 'add_product.dart';
 
@@ -26,10 +29,13 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
   String _query = '';
   String _selectedCategory = 'All';
   String _sort = 'Newest';
+  final Set<String> _togglingProductIds = <String>{};
+  final Set<String> _deletingProductIds = <String>{};
+  bool _savingProduct = false;
 
   Future<void> _addProduct(BuildContext context) async {
     final data = await Navigator.of(context).push<ProductFormData>(
-      MaterialPageRoute<ProductFormData>(
+      AppPageRoute<ProductFormData>(
         builder: (_) => AddProductPage(
           onUploadImage: widget.store.uploadImage,
           categories: widget.store.categories,
@@ -41,22 +47,25 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
       return;
     }
 
-    widget.store.addProduct(
-      name: data.name,
-      category: data.category,
-      description: data.description,
-      price: data.price,
-      discountPercent: data.discountPercent,
-      discountStart: data.discountStart,
-      discountEnd: data.discountEnd,
-      stock: data.stock,
-      imageUrl: data.imageUrl,
+    await _saveProductAction(
+      () => widget.store.addProduct(
+        name: data.name,
+        category: data.category,
+        description: data.description,
+        price: data.price,
+        discountPercent: data.discountPercent,
+        discountStart: data.discountStart,
+        discountEnd: data.discountEnd,
+        stock: data.stock,
+        imageUrl: data.imageUrl,
+      ),
+      successMessage: '"${data.name}" created.',
     );
   }
 
   Future<void> _editProduct(BuildContext context, Product product) async {
     final data = await Navigator.of(context).push<ProductFormData>(
-      MaterialPageRoute<ProductFormData>(
+      AppPageRoute<ProductFormData>(
         builder: (_) => AddProductPage(
           initialProduct: product,
           onUploadImage: widget.store.uploadImage,
@@ -69,17 +78,202 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
       return;
     }
 
-    widget.store.updateProduct(
-      product.copyWith(
-        name: data.name,
-        category: data.category,
-        description: data.description,
-        price: data.price,
-        discountPercent: data.discountPercent,
-        discountStart: data.discountStart,
-        discountEnd: data.discountEnd,
-        stock: data.stock,
-        imageUrl: data.imageUrl,
+    await _saveProductAction(
+      () => widget.store.updateProduct(
+        product.copyWith(
+          name: data.name,
+          category: data.category,
+          description: data.description,
+          price: data.price,
+          discountPercent: data.discountPercent,
+          discountStart: data.discountStart,
+          discountEnd: data.discountEnd,
+          stock: data.stock,
+          imageUrl: data.imageUrl,
+        ),
+      ),
+      successMessage: '"${data.name}" updated.',
+    );
+  }
+
+  Future<void> _deleteProduct(BuildContext context, Product product) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete product?'),
+        content: Text(
+          'Delete "${product.name}" from the catalog? This only removes that one product.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    setState(() {
+      _deletingProductIds.add(product.id);
+    });
+
+    try {
+      await widget.store.deleteProduct(product.id);
+      if (!mounted) {
+        return;
+      }
+
+      final categoryStillExists = widget.store.allProducts.any(
+        (item) => item.category == _selectedCategory,
+      );
+      if (_selectedCategory != 'All' && !categoryStillExists) {
+        setState(() {
+          _selectedCategory = 'All';
+        });
+      }
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('"${product.name}" deleted.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deletingProductIds.remove(product.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleProductStatus(Product product, bool value) async {
+    setState(() {
+      _togglingProductIds.add(product.id);
+    });
+    try {
+      await widget.store.toggleProductStatus(product.id, value);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? '"${product.name}" is now active.'
+                : '"${product.name}" was hidden from the storefront.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _togglingProductIds.remove(product.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _saveProductAction(
+    Future<void> Function() action, {
+    required String successMessage,
+  }) async {
+    if (_savingProduct) {
+      return;
+    }
+
+    setState(() {
+      _savingProduct = true;
+    });
+
+    try {
+      await action();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingProduct = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _exportProducts(List<Product> products) async {
+    final rows = <List<String>>[
+      [
+        'Product ID',
+        'Name',
+        'Category',
+        'Description',
+        'Price',
+        'Discount Percent',
+        'Discount Start',
+        'Discount End',
+        'Stock',
+        'Active',
+        'Image URL',
+      ],
+      ...products.map(
+        (product) => [
+          product.id,
+          product.name,
+          product.category,
+          product.description,
+          product.price.toStringAsFixed(2),
+          product.discountPercent.toStringAsFixed(0),
+          product.discountStart?.toIso8601String() ?? '',
+          product.discountEnd?.toIso8601String() ?? '',
+          product.stock.toString(),
+          product.isActive ? 'Yes' : 'No',
+          product.imageUrl,
+        ],
+      ),
+    ];
+
+    final success = await exportCsv(
+      'products_export.csv',
+      buildCsv(rows),
+    );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Products CSV downloaded.'
+              : 'CSV export is available on web builds.',
+        ),
       ),
     );
   }
@@ -98,175 +292,179 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
             final theme = Theme.of(context);
             final scheme = theme.colorScheme;
 
-            return AlertDialog(
-              title: const Text('Import products from CSV'),
-              content: SizedBox(
-                width: 680,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Paste CSV rows here. Required columns: name, category, description, price, stock, imageUrl.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(16),
+            return EntranceMotion(
+              duration: const Duration(milliseconds: 420),
+              beginOffset: const Offset(0.06, 0),
+              child: AlertDialog(
+                title: const Text('Import products from CSV'),
+                content: SizedBox(
+                  width: 680,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Paste CSV rows here. Required columns: name, category, description, price, stock, imageUrl.',
+                          style: theme.textTheme.bodyMedium,
                         ),
-                        child: SelectableText(
-                          _csvTemplate,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: isSubmitting
-                                ? null
-                                : () async {
-                                    final result = await FilePicker.platform
-                                        .pickFiles(
-                                          type: FileType.custom,
-                                          allowedExtensions: const ['csv'],
-                                          withData: true,
-                                        );
-                                    if (result == null ||
-                                        result.files.isEmpty ||
-                                        !context.mounted) {
-                                      return;
-                                    }
-
-                                    final file = result.files.single;
-                                    final bytes = file.bytes;
-                                    if (bytes == null) {
-                                      setDialogState(() {
-                                        errorText =
-                                            'Could not read the selected CSV file.';
-                                      });
-                                      return;
-                                    }
-
-                                    controller.text = utf8.decode(bytes);
-                                    setDialogState(() {
-                                      errorText = null;
-                                    });
-
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Loaded ${file.name} for import.',
-                                        ),
-                                      ),
-                                    );
-                                  },
-                            icon: const Icon(Icons.attach_file_outlined),
-                            label: const Text('Choose CSV file'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              await Clipboard.setData(
-                                const ClipboardData(text: _csvTemplate),
-                              );
-                              if (!context.mounted) {
-                                return;
-                              }
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('CSV template copied.'),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.copy_all_outlined),
-                            label: const Text('Copy template'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              controller.text = _csvTemplate;
-                            },
-                            child: const Text('Use sample'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: controller,
-                        minLines: 10,
-                        maxLines: 16,
-                        decoration: InputDecoration(
-                          hintText: 'Paste product CSV here',
-                          alignLabelWithHint: true,
-                          errorText: errorText,
-                          border: OutlineInputBorder(
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(16),
                           ),
+                          child: SelectableText(
+                            _csvTemplate,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontFamily: 'monospace',
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      final result = await FilePicker.platform
+                                          .pickFiles(
+                                            type: FileType.custom,
+                                            allowedExtensions: const ['csv'],
+                                            withData: true,
+                                          );
+                                      if (result == null ||
+                                          result.files.isEmpty ||
+                                          !context.mounted) {
+                                        return;
+                                      }
+
+                                      final file = result.files.single;
+                                      final bytes = file.bytes;
+                                      if (bytes == null) {
+                                        setDialogState(() {
+                                          errorText =
+                                              'Could not read the selected CSV file.';
+                                        });
+                                        return;
+                                      }
+
+                                      controller.text = utf8.decode(bytes);
+                                      setDialogState(() {
+                                        errorText = null;
+                                      });
+
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Loaded ${file.name} for import.',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                              icon: const Icon(Icons.attach_file_outlined),
+                              label: const Text('Choose CSV file'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  const ClipboardData(text: _csvTemplate),
+                                );
+                                if (!context.mounted) {
+                                  return;
+                                }
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('CSV template copied.'),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.copy_all_outlined),
+                              label: const Text('Copy template'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                controller.text = _csvTemplate;
+                              },
+                              child: const Text('Use sample'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: controller,
+                          minLines: 10,
+                          maxLines: 16,
+                          decoration: InputDecoration(
+                            hintText: 'Paste product CSV here',
+                            alignLabelWithHint: true,
+                            errorText: errorText,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (controller.text.trim().isEmpty) {
+                              setDialogState(() {
+                                errorText = 'Paste CSV content first.';
+                              });
+                              return;
+                            }
+
+                            setDialogState(() {
+                              isSubmitting = true;
+                              errorText = null;
+                            });
+
+                            final result = await widget.store.importProductsCsv(
+                              controller.text,
+                            );
+
+                            if (!dialogContext.mounted) {
+                              return;
+                            }
+
+                            if (!result.success) {
+                              setDialogState(() {
+                                isSubmitting = false;
+                                errorText = result.message ?? 'Import failed.';
+                              });
+                              return;
+                            }
+
+                            Navigator.of(dialogContext).pop(result.message);
+                          },
+                    icon: isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.file_upload_outlined),
+                    label: Text(isSubmitting ? 'Importing...' : 'Import'),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          if (controller.text.trim().isEmpty) {
-                            setDialogState(() {
-                              errorText = 'Paste CSV content first.';
-                            });
-                            return;
-                          }
-
-                          setDialogState(() {
-                            isSubmitting = true;
-                            errorText = null;
-                          });
-
-                          final result = await widget.store.importProductsCsv(
-                            controller.text,
-                          );
-
-                          if (!dialogContext.mounted) {
-                            return;
-                          }
-
-                          if (!result.success) {
-                            setDialogState(() {
-                              isSubmitting = false;
-                              errorText = result.message ?? 'Import failed.';
-                            });
-                            return;
-                          }
-
-                          Navigator.of(dialogContext).pop(result.message);
-                        },
-                  icon: isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.file_upload_outlined),
-                  label: Text(isSubmitting ? 'Importing...' : 'Import'),
-                ),
-              ],
             );
           },
         );
@@ -534,6 +732,20 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                         ),
                       ),
                     ],
+                    if (_savingProduct) ...[
+                      const SizedBox(width: 10),
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ],
+                    const Spacer(),
+                    OutlinedButton.icon(
+                      onPressed: () => _exportProducts(sortedProducts),
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Export CSV'),
+                    ),
                   ],
                 ),
               ),
@@ -557,10 +769,25 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Try another product name, category, or ID.',
+                                widget.store.allProducts.isNotEmpty
+                                    ? 'Your current search or category filter is hiding the remaining products.'
+                                    : 'There are no products in the catalog right now.',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
+                              if (widget.store.allProducts.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _query = '';
+                                      _selectedCategory = 'All';
+                                      _sort = 'Newest';
+                                    });
+                                  },
+                                  child: const Text('Clear filters'),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -652,28 +879,51 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
-                                      Switch(
-                                        value: product.isActive,
-                                        onChanged: (value) {
-                                          widget.store.toggleProductStatus(
-                                            product.id,
-                                            value,
-                                          );
-                                        },
-                                      ),
+                                      if (_togglingProductIds.contains(product.id))
+                                        const SizedBox(
+                                          width: 36,
+                                          height: 36,
+                                          child: Padding(
+                                            padding: EdgeInsets.all(8),
+                                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                                          ),
+                                        )
+                                      else
+                                        Switch(
+                                          value: product.isActive,
+                                          onChanged: (value) async {
+                                            await _toggleProductStatus(
+                                              product,
+                                              value,
+                                            );
+                                          },
+                                        ),
                                       IconButton(
                                         onPressed: () =>
                                             _editProduct(context, product),
                                         icon: const Icon(Icons.edit_outlined),
                                       ),
-                                      IconButton(
-                                        onPressed: () {
-                                          widget.store.deleteProduct(
-                                            product.id,
-                                          );
-                                        },
-                                        icon: const Icon(Icons.delete_outline),
-                                      ),
+                                      if (_deletingProductIds.contains(
+                                        product.id,
+                                      ))
+                                        const SizedBox(
+                                          width: 40,
+                                          height: 40,
+                                          child: Padding(
+                                            padding: EdgeInsets.all(8),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        IconButton(
+                                          onPressed: () =>
+                                              _deleteProduct(context, product),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                          ),
+                                        ),
                                     ],
                                   );
 

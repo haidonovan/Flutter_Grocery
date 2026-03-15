@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../store/grocery_store_state.dart';
+import '../main.dart';
+import '../widgets/app_page_route.dart';
+import '../widgets/entrance_motion.dart';
 import '../widgets/theme_mode_menu.dart';
 import '../widgets/coupon_banner.dart';
 import 'cart.dart';
@@ -19,14 +22,18 @@ class ClientHome extends StatefulWidget {
     required this.store,
     required this.onLogout,
     required this.themeMode,
+    required this.themeStyle,
     required this.onThemeModeChanged,
+    required this.onThemeStyleChanged,
   });
 
   final String userEmail;
   final GroceryStoreState store;
   final VoidCallback onLogout;
   final ThemeMode themeMode;
+  final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final ValueChanged<AppThemeStyle> onThemeStyleChanged;
 
   @override
   State<ClientHome> createState() => _ClientHomeState();
@@ -132,7 +139,7 @@ class _ClientHomeState extends State<ClientHome> {
     }
 
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ProductDetailPage(
           product: product,
           cartQuantity: widget.store.cartQuantityForProduct(product.id),
@@ -147,7 +154,7 @@ class _ClientHomeState extends State<ClientHome> {
 
   Future<void> _openCheckout() async {
     final request = await Navigator.of(context).push<CheckoutRequest>(
-      MaterialPageRoute<CheckoutRequest>(
+      AppPageRoute<CheckoutRequest>(
         builder: (_) => CheckoutPage(
           totalAmount: widget.store.cartTotal,
           itemCount: widget.store.cartItemCount,
@@ -235,61 +242,77 @@ class _ClientHomeState extends State<ClientHome> {
         final body = IndexedStack(
           index: _currentTabIndex,
           children: [
-            ProductListPage(
-              products: products,
-              cartQuantityForProduct: widget.store.cartQuantityForProduct,
-              onOpenProduct: _openProductDetail,
-              onAddToCart: _addToCart,
-              isFavorite: widget.store.isFavorite,
-              onToggleFavorite: widget.store.toggleFavorite,
-              isLoading:
-                  widget.store.isInitializing || widget.store.isLoadingProducts,
+            EntranceMotion(
+              active: _currentTabIndex == 0,
+              child: ProductListPage(
+                products: products,
+                cartQuantityForProduct: widget.store.cartQuantityForProduct,
+                onOpenProduct: _openProductDetail,
+                onAddToCart: _addToCart,
+                isFavorite: widget.store.isFavorite,
+                onToggleFavorite: widget.store.toggleFavorite,
+                isLoading:
+                    widget.store.isInitializing ||
+                    widget.store.isLoadingProducts,
+              ),
             ),
-            FavoritesPage(
-              products: favoriteProducts,
-              cartQuantityForProduct: widget.store.cartQuantityForProduct,
-              onOpenProduct: _openProductDetail,
-              onAddToCart: _addToCart,
-              isFavorite: widget.store.isFavorite,
-              onToggleFavorite: widget.store.toggleFavorite,
+            EntranceMotion(
+              active: _currentTabIndex == 1,
+              child: FavoritesPage(
+                products: favoriteProducts,
+                cartQuantityForProduct: widget.store.cartQuantityForProduct,
+                onOpenProduct: _openProductDetail,
+                onAddToCart: _addToCart,
+                isFavorite: widget.store.isFavorite,
+                onToggleFavorite: widget.store.toggleFavorite,
+              ),
             ),
-            CartPage(
-              items: cartItems,
-              totalAmount: widget.store.cartTotal,
-              onIncrease: (item) {
-                final success = widget.store.increaseCartQuantity(
-                  item.product.id,
-                );
-                if (!success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Cannot exceed current stock.'),
-                    ),
+            EntranceMotion(
+              active: _currentTabIndex == 2,
+              child: CartPage(
+                items: cartItems,
+                totalAmount: widget.store.cartTotal,
+                onIncrease: (item) {
+                  final success = widget.store.increaseCartQuantity(
+                    item.product.id,
                   );
-                }
-              },
-              onDecrease: (item) {
-                widget.store.decreaseCartQuantity(item.product.id);
-              },
-              onRemove: (item) {
-                widget.store.removeFromCart(item.product.id);
-              },
-              onCheckout: _openCheckout,
+                  if (!success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cannot exceed current stock.'),
+                      ),
+                    );
+                  }
+                },
+                onDecrease: (item) {
+                  widget.store.decreaseCartQuantity(item.product.id);
+                },
+                onRemove: (item) {
+                  widget.store.removeFromCart(item.product.id);
+                },
+                onCheckout: _openCheckout,
+              ),
             ),
-            OrderHistoryPage(
-              orders: orders,
-              isLoading: widget.store.isLoadingOrders,
+            EntranceMotion(
+              active: _currentTabIndex == 3,
+              child: OrderHistoryPage(
+                orders: orders,
+                isLoading: widget.store.isLoadingOrders,
+              ),
             ),
-            ProfilePage(
-              userEmail: widget.userEmail,
-              totalOrders: orders.length,
-              onLogout: widget.onLogout,
-              onSendSupport: widget.store.submitSupportTicket,
-              onReplySupport: widget.store.sendSupportThreadMessage,
-              onCloseSupport: widget.store.closeSupportTicket,
-              activeCoupons: widget.store.activeCoupons,
-              supportTickets: widget.store.mySupportTickets,
-              isLoading: widget.store.isInitializing,
+            EntranceMotion(
+              active: _currentTabIndex == 4,
+              child: ProfilePage(
+                userEmail: widget.userEmail,
+                totalOrders: orders.length,
+                onLogout: widget.onLogout,
+                onSendSupport: widget.store.submitSupportTicket,
+                onReplySupport: widget.store.sendSupportThreadMessage,
+                onCloseSupport: widget.store.closeSupportTicket,
+                activeCoupons: widget.store.activeCoupons,
+                supportTickets: widget.store.mySupportTickets,
+                isLoading: widget.store.isInitializing,
+              ),
             ),
           ],
         );
@@ -300,7 +323,9 @@ class _ClientHomeState extends State<ClientHome> {
             actions: [
               ThemeModeMenu(
                 themeMode: widget.themeMode,
+                themeStyle: widget.themeStyle,
                 onChanged: widget.onThemeModeChanged,
+                onStyleChanged: widget.onThemeStyleChanged,
               ),
               const SizedBox(width: 4),
               if (_currentTabIndex != 2)
