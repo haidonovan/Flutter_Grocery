@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../widgets/coupon_banner.dart';
 import '../widgets/entrance_motion.dart';
-import '../widgets/skeleton.dart';
 import 'models.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -108,18 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading) {
-      return ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          SkeletonBox(height: 80),
-          SizedBox(height: 12),
-          SkeletonBox(height: 60),
-          SizedBox(height: 12),
-          SkeletonBox(height: 60),
-          SizedBox(height: 12),
-          SkeletonBox(height: 140),
-        ],
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final theme = Theme.of(context);

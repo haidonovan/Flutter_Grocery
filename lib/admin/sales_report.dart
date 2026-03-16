@@ -4,6 +4,7 @@ import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import 'dashboard.dart';
 import '../utils/csv_export.dart';
+import '../widgets/entrance_motion.dart';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key, required this.store});
@@ -19,6 +20,31 @@ class _SalesReportPageState extends State<SalesReportPage> {
   DateTime? _customStart;
   DateTime? _customEnd;
   String _query = '';
+
+  Future<void> _openFullScreen(
+    BuildContext context,
+    String title,
+    Widget child,
+  ) async {
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 420),
+      pageBuilder:
+          (context, animation, secondaryAnimation) => Dialog.fullscreen(
+            child: EntranceMotion(
+              duration: const Duration(milliseconds: 520),
+              beginOffset: const Offset(0.06, 0),
+              child: Scaffold(
+                appBar: AppBar(title: Text(title)),
+                body: Padding(padding: const EdgeInsets.all(16), child: child),
+              ),
+            ),
+          ),
+    );
+  }
 
   Future<void> _pickCustomRange() async {
     final now = DateTime.now();
@@ -224,23 +250,20 @@ class _SalesReportPageState extends State<SalesReportPage> {
               ],
             ),
             const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Revenue over time',
-                      style: Theme.of(context).textTheme.titleMedium,
+            _SalesChartCard(
+              title: 'Revenue over time',
+              onExpand:
+                  () => _openFullScreen(
+                    context,
+                    'Revenue over time',
+                    RevenueChart(
+                      orders: filteredOrders,
+                      range: range,
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 260,
-                      child: RevenueChart(orders: filteredOrders, range: range),
-                    ),
-                  ],
-                ),
+                  ),
+              child: SizedBox(
+                height: 260,
+                child: RevenueChart(orders: filteredOrders, range: range),
               ),
             ),
             const SizedBox(height: 12),
@@ -305,6 +328,45 @@ class _SalesReportPageState extends State<SalesReportPage> {
           ],
         );
       },
+    );
+  }
+}
+
+class _SalesChartCard extends StatelessWidget {
+  const _SalesChartCard({
+    required this.title,
+    required this.child,
+    required this.onExpand,
+  });
+
+  final String title;
+  final Widget child;
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                IconButton(
+                  onPressed: onExpand,
+                  icon: const Icon(Icons.open_in_full),
+                  tooltip: 'Open fullscreen',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            child,
+          ],
+        ),
+      ),
     );
   }
 }

@@ -9,7 +9,6 @@ import '../store/grocery_store_state.dart';
 import '../utils/csv_export.dart';
 import '../widgets/app_page_route.dart';
 import '../widgets/entrance_motion.dart';
-import '../widgets/skeleton.dart';
 import 'add_product.dart';
 
 class ProductManagementPage extends StatefulWidget {
@@ -579,15 +578,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
-        if (widget.store.isLoadingProducts) {
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: 6,
-            itemBuilder: (context, index) => const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: SkeletonBox(height: 88),
-            ),
-          );
+        if (widget.store.isLoadingProducts && widget.store.allProducts.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
         }
 
         final categories = _categories(widget.store.categories);

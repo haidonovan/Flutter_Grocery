@@ -886,10 +886,10 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<void> updateOrderStatus(String orderId, OrderStatus nextStatus) async {
-    await _apiClient.patchJson('/api/orders/$orderId/status', {
+    final response = await _apiClient.patchJson('/api/orders/$orderId/status', {
       'status': nextStatus.name,
     });
-    await refreshAll();
+    _mergeOrderFromApi(response);
   }
 
   Future<void> loadComments(String productId) async {
@@ -988,12 +988,12 @@ class GroceryStoreState extends ChangeNotifier {
     String? trackingCarrier,
     String? trackingStatus,
   }) async {
-    await _apiClient.patchJson('/api/orders/$orderId/tracking', {
+    final response = await _apiClient.patchJson('/api/orders/$orderId/tracking', {
       'trackingNumber': trackingNumber,
       'trackingCarrier': trackingCarrier,
       'trackingStatus': trackingStatus,
     });
-    await refreshAll();
+    _mergeOrderFromApi(response);
   }
 
   Future<void> createCoupon({
@@ -1114,6 +1114,17 @@ class GroceryStoreState extends ChangeNotifier {
       _products.insert(0, product);
     } else {
       _products[index] = product;
+    }
+    notifyListeners();
+  }
+
+  void _mergeOrderFromApi(Map<String, dynamic> raw) {
+    final order = _orderFromApi(raw);
+    final index = _orders.indexWhere((item) => item.id == order.id);
+    if (index == -1) {
+      _orders.insert(0, order);
+    } else {
+      _orders[index] = order.copyWith(lines: _orders[index].lines);
     }
     notifyListeners();
   }

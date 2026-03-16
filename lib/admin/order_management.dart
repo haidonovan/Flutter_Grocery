@@ -19,13 +19,21 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
   String _statusFilter = 'All';
   String _sort = 'Newest';
   DateTimeRange? _dateRange;
+  final Set<String> _statusUpdatingOrderIds = <String>{};
+  final Set<String> _trackingUpdatingOrderIds = <String>{};
 
-  List<DropdownMenuItem<OrderStatus>> get _statusItems {
+  List<DropdownMenuItem<OrderStatus>> _statusItems(BuildContext context) {
     return OrderStatus.values
         .map(
           (status) => DropdownMenuItem<OrderStatus>(
             value: status,
-            child: Text(status.name),
+            child: Text(
+              status.name[0].toUpperCase() + status.name.substring(1),
+              style: TextStyle(
+                color: _statusColor(context, status),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         )
         .toList(growable: false);
@@ -50,6 +58,48 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     return '${value.day} $month ${value.year} '
         '${value.hour.toString().padLeft(2, '0')}:'
         '${value.minute.toString().padLeft(2, '0')}';
+  }
+
+
+  Color _statusColor(BuildContext context, OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return const Color(0xFFC98A09);
+      case OrderStatus.processing:
+        return const Color(0xFF2563EB);
+      case OrderStatus.shipped:
+        return const Color(0xFF7C3AED);
+      case OrderStatus.delivered:
+        return const Color(0xFF1E8E3E);
+      case OrderStatus.cancelled:
+        return const Color(0xFFC62828);
+    }
+  }
+
+  Color _statusBackground(BuildContext context, OrderStatus status) {
+    return _statusColor(context, status).withValues(alpha: 0.12);
+  }
+
+  Color _statusBorder(BuildContext context, OrderStatus status) {
+    return _statusColor(context, status).withValues(alpha: 0.28);
+  }
+
+  Widget _statusBadge(BuildContext context, OrderStatus status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _statusBackground(context, status),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _statusBorder(context, status)),
+      ),
+      child: Text(
+        status.name[0].toUpperCase() + status.name.substring(1),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: _statusColor(context, status),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 
   Future<void> _pickDateRange() async {
@@ -127,6 +177,9 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     BuildContext context,
     OrderRecord order,
   ) async {
+    if (_trackingUpdatingOrderIds.contains(order.id)) {
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     final numberController = TextEditingController(
       text: order.trackingNumber ?? '',
@@ -175,6 +228,9 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     );
 
     if (shouldSave == true) {
+      setState(() {
+        _trackingUpdatingOrderIds.add(order.id);
+      });
       try {
         await widget.store.updateOrderTracking(
           orderId: order.id,
@@ -193,11 +249,24 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
           return;
         }
         messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _trackingUpdatingOrderIds.remove(order.id);
+          });
+        }
       }
     }
   }
 
   Future<void> _updateStatus(OrderRecord order, OrderStatus next) async {
+    if (_statusUpdatingOrderIds.contains(order.id) || order.status == next) {
+      return;
+    }
+
+    setState(() {
+      _statusUpdatingOrderIds.add(order.id);
+    });
     try {
       await widget.store.updateOrderStatus(order.id, next);
       if (!mounted) {
@@ -213,6 +282,12 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _statusUpdatingOrderIds.remove(order.id);
+        });
+      }
     }
   }
 
@@ -261,7 +336,7 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
-        if (widget.store.isLoadingOrders) {
+        if (widget.store.isLoadingOrders && widget.store.allOrders.isEmpty) {
           return ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: 4,
@@ -329,22 +404,104 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                       itemCount: filteredOrders.length,
                       itemBuilder: (context, index) {
                         final order = filteredOrders[index];
+                        final isStatusUpdating = _statusUpdatingOrderIds.contains(order.id);
+                        final isTrackingUpdating = _trackingUpdatingOrderIds.contains(order.id);
+                        final statusColor = _statusColor(context, order.status);
                         return Card(
                           child: ExpansionTile(
                             title: Text(order.id),
                             subtitle: Text(
-                              '${order.customerEmail} • ${_formatDate(order.createdAt)}',
+                              '${order.customerEmail} | ${_formatDate(order.createdAt)}',
                             ),
                             trailing: SizedBox(
-                              width: 150,
-                              child: DropdownButtonFormField<OrderStatus>(
-                                initialValue: order.status,
-                                items: _statusItems,
-                                onChanged: (next) async {
-                                  if (next != null) {
-                                    await _updateStatus(order, next);
-                                  }
-                                },
+                              width: 170,
+                              child: Stack(
+                                alignment: Alignment.centerRight,
+                                children: [
+                                  IgnorePointer(
+                                    ignoring: isStatusUpdating,
+                                    child: DropdownButtonFormField<OrderStatus>(
+                                      key: ValueKey('${order.id}-${order.status.name}'),
+                                      initialValue: order.status,
+                                      dropdownColor: Theme.of(context).cardColor,
+                                      iconEnabledColor: statusColor,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: statusColor,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        filled: true,
+                                        fillColor: _statusBackground(context, order.status),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(
+                                            color: _statusBorder(context, order.status),
+                                          ),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(
+                                            color: _statusBorder(context, order.status),
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(
+                                            color: statusColor,
+                                            width: 1.2,
+                                          ),
+                                        ),
+                                      ),
+                                      selectedItemBuilder: (context) => OrderStatus.values
+                                          .map(
+                                            (status) => Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(
+                                                status.name[0].toUpperCase() +
+                                                    status.name.substring(1),
+                                                overflow: TextOverflow.ellipsis,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: _statusColor(
+                                                        context,
+                                                        status,
+                                                      ),
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(growable: false),
+                                      items: _statusItems(context),
+                                      onChanged: (next) async {
+                                        if (next != null) {
+                                          await _updateStatus(order, next);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  if (isStatusUpdating)
+                                    Positioned(
+                                      right: 12,
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            statusColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             childrenPadding: const EdgeInsets.fromLTRB(
@@ -403,15 +560,62 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: OutlinedButton.icon(
-                                  onPressed: () =>
-                                      _showTrackingDialog(context, order),
-                                  icon: const Icon(
-                                    Icons.local_shipping_outlined,
+                                  onPressed: isTrackingUpdating
+                                      ? null
+                                      : () => _showTrackingDialog(context, order),
+                                  icon: isTrackingUpdating
+                                      ? SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(
+                                              statusColor,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.local_shipping_outlined,
+                                        ),
+                                  label: Text(
+                                    isTrackingUpdating
+                                        ? 'Saving tracking...'
+                                        : 'Update tracking',
                                   ),
-                                  label: const Text('Update tracking'),
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _statusBadge(context, order.status),
+                                  if (isTrackingUpdating)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        'Tracking sync in progress',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(

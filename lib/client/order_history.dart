@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/entrance_motion.dart';
-import '../widgets/skeleton.dart';
 import 'models.dart';
 
 class OrderHistoryPage extends StatefulWidget {
@@ -137,14 +136,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   Widget build(BuildContext context) {
     if (widget.orders.isEmpty) {
       if (widget.isLoading) {
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: 4,
-          itemBuilder: (context, index) => const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: SkeletonBox(height: 110),
-          ),
-        );
+        return const Center(child: CircularProgressIndicator());
       }
       return const Center(
         child: Text('No orders yet. Completed orders will show here.'),
