@@ -9,12 +9,14 @@ class ThemeModeMenu extends StatelessWidget {
     required this.themeStyle,
     required this.onChanged,
     required this.onStyleChanged,
+    this.onTriggerOrigin,
   });
 
   final ThemeMode themeMode;
   final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onChanged;
   final ValueChanged<AppThemeStyle> onStyleChanged;
+  final ValueChanged<Offset>? onTriggerOrigin;
 
   IconData get _icon {
     switch (themeMode) {
@@ -40,16 +42,30 @@ class ThemeModeMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconKey = GlobalKey();
+
+    Offset? resolveOrigin() {
+      final renderObject = iconKey.currentContext?.findRenderObject();
+      if (renderObject is! RenderBox) {
+        return null;
+      }
+      return renderObject.localToGlobal(renderObject.size.center(Offset.zero));
+    }
+
     return PopupMenuButton<String>(
       tooltip: 'Theme',
-      icon: Badge(
-        label: Text(
-          _styleLabel[0],
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+      icon: KeyedSubtree(
+        key: iconKey,
+        child: Badge(
+          label: Text(
+            _styleLabel[0],
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+          ),
+          child: Icon(_icon),
         ),
-        child: Icon(_icon),
       ),
       onSelected: (value) {
+        onTriggerOrigin?.call(resolveOrigin() ?? const Offset(0, 0));
         switch (value) {
           case 'mode_system':
             onChanged(ThemeMode.system);

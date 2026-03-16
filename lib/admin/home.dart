@@ -21,6 +21,7 @@ class AdminHome extends StatefulWidget {
     required this.themeStyle,
     required this.onThemeModeChanged,
     required this.onThemeStyleChanged,
+    required this.onThemeTriggerOrigin,
   });
 
   final GroceryStoreState store;
@@ -29,6 +30,7 @@ class AdminHome extends StatefulWidget {
   final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onThemeModeChanged;
   final ValueChanged<AppThemeStyle> onThemeStyleChanged;
+  final ValueChanged<Offset> onThemeTriggerOrigin;
 
   @override
   State<AdminHome> createState() => _AdminHomeState();
@@ -224,6 +226,7 @@ class _AdminHomeState extends State<AdminHome> {
                 themeStyle: widget.themeStyle,
                 onChanged: widget.onThemeModeChanged,
                 onStyleChanged: widget.onThemeStyleChanged,
+                onTriggerOrigin: widget.onThemeTriggerOrigin,
               ),
               IconButton(
                 onPressed: widget.onLogout,

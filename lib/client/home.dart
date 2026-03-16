@@ -28,6 +28,7 @@ class ClientHome extends StatefulWidget {
     required this.themeStyle,
     required this.onThemeModeChanged,
     required this.onThemeStyleChanged,
+    required this.onThemeTriggerOrigin,
   });
 
   final String userEmail;
@@ -37,6 +38,7 @@ class ClientHome extends StatefulWidget {
   final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onThemeModeChanged;
   final ValueChanged<AppThemeStyle> onThemeStyleChanged;
+  final ValueChanged<Offset> onThemeTriggerOrigin;
 
   @override
   State<ClientHome> createState() => _ClientHomeState();
@@ -718,6 +720,7 @@ class _ClientHomeState extends State<ClientHome> {
                 themeStyle: widget.themeStyle,
                 onChanged: widget.onThemeModeChanged,
                 onStyleChanged: widget.onThemeStyleChanged,
+                onTriggerOrigin: widget.onThemeTriggerOrigin,
               ),
               const SizedBox(width: 4),
               if (_currentTabIndex != 2)

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,7 +21,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   static const String _apiBaseUrlEnv = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
@@ -30,11 +32,25 @@ class _MyAppState extends State<MyApp> {
   late final Future<GroceryStoreState> _storeFuture;
   ThemeMode _themeMode = ThemeMode.system;
   AppThemeStyle _themeStyle = AppThemeStyle.classic;
+  late final AnimationController _themeBlastController;
+  ThemeMode? _pendingThemeMode;
+  AppThemeStyle? _pendingThemeStyle;
+  Offset? _themeBlastOrigin;
+  Offset? _queuedThemeBlastOrigin;
+  Color _themeBlastFill = Colors.transparent;
+  Color _themeBlastRing = Colors.transparent;
+  bool _themeSwapCommitted = true;
 
   @override
   void initState() {
     super.initState();
     _storeFuture = GroceryStoreState.create(baseUrl: _resolveApiBaseUrl());
+    _themeBlastController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )
+      ..addListener(_handleThemeBlastTick)
+      ..addStatusListener(_handleThemeBlastStatus);
     _loadThemeMode();
   }
 
@@ -60,6 +76,41 @@ class _MyAppState extends State<MyApp> {
       _themeMode = _decodeThemeMode(raw);
       _themeStyle = _decodeThemeStyle(rawStyle);
     });
+  }
+
+
+  void _registerThemeTriggerOrigin(Offset origin) {
+    _queuedThemeBlastOrigin = origin;
+  }
+
+  Brightness _brightnessForMode(ThemeMode mode) {
+    if (mode == ThemeMode.light) {
+      return Brightness.light;
+    }
+    if (mode == ThemeMode.dark) {
+      return Brightness.dark;
+    }
+    return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+  }
+
+  void _handleThemeBlastTick() {
+    if (!_themeSwapCommitted && _themeBlastController.value >= 0.42) {
+      setState(() {
+        _themeMode = _pendingThemeMode ?? _themeMode;
+        _themeStyle = _pendingThemeStyle ?? _themeStyle;
+        _themeSwapCommitted = true;
+      });
+    }
+  }
+
+  void _handleThemeBlastStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      setState(() {
+        _pendingThemeMode = null;
+        _pendingThemeStyle = null;
+        _themeBlastOrigin = null;
+      });
+    }
   }
 
   ThemeMode _decodeThemeMode(String? raw) {
@@ -109,19 +160,41 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _themeMode = mode;
-    });
-    await prefs.setString(_themePrefKey, _encodeThemeMode(mode));
+    await _runThemeBlast(nextMode: mode);
   }
 
   Future<void> _setThemeStyle(AppThemeStyle style) async {
-    final prefs = await SharedPreferences.getInstance();
+    await _runThemeBlast(nextStyle: style);
+  }
+
+  Future<void> _runThemeBlast({ThemeMode? nextMode, AppThemeStyle? nextStyle}) async {
+    final targetMode = nextMode ?? _themeMode;
+    final targetStyle = nextStyle ?? _themeStyle;
+    if (targetMode == _themeMode && targetStyle == _themeStyle) {
+      return;
+    }
+
+    final brightness = _brightnessForMode(targetMode);
+    final origin = _queuedThemeBlastOrigin;
+    _queuedThemeBlastOrigin = null;
+
     setState(() {
-      _themeStyle = style;
+      _pendingThemeMode = targetMode;
+      _pendingThemeStyle = targetStyle;
+      _themeBlastOrigin = origin;
+      _themeBlastFill = _surfaceTintForStyle(
+        targetStyle,
+        brightness,
+      ).withValues(alpha: 0.96);
+      _themeBlastRing = _seedColorForStyle(targetStyle).withValues(alpha: 0.92);
+      _themeSwapCommitted = false;
     });
-    await prefs.setString(_themeStylePrefKey, _encodeThemeStyle(style));
+
+    _themeBlastController.forward(from: 0);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themePrefKey, _encodeThemeMode(targetMode));
+    await prefs.setString(_themeStylePrefKey, _encodeThemeStyle(targetStyle));
   }
 
   Color _seedColorForStyle(AppThemeStyle style) {
@@ -336,6 +409,15 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
+  void dispose() {
+    _themeBlastController
+      ..removeListener(_handleThemeBlastTick)
+      ..removeStatusListener(_handleThemeBlastStatus)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -344,9 +426,28 @@ class _MyAppState extends State<MyApp> {
       darkTheme: _buildTheme(Brightness.dark, _themeStyle),
       themeMode: _themeMode,
       builder: (context, child) {
-        return AppBackground(
-          themeStyle: _themeStyle,
-          child: child ?? const SizedBox.shrink(),
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            AppBackground(
+              themeStyle: _themeStyle,
+              child: child ?? const SizedBox.shrink(),
+            ),
+            if (_themeBlastOrigin != null)
+              IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _themeBlastController,
+                  builder: (context, _) {
+                    return _ThemeBlastOverlay(
+                      progress: _themeBlastController.value,
+                      origin: _themeBlastOrigin!,
+                      fillColor: _themeBlastFill,
+                      ringColor: _themeBlastRing,
+                    );
+                  },
+                ),
+              ),
+          ],
         );
       },
       home: FutureBuilder<GroceryStoreState>(
@@ -370,10 +471,104 @@ class _MyAppState extends State<MyApp> {
             themeStyle: _themeStyle,
             onThemeModeChanged: _setThemeMode,
             onThemeStyleChanged: _setThemeStyle,
+            onThemeTriggerOrigin: _registerThemeTriggerOrigin,
           );
         },
       ),
     );
+  }
+}
+
+class _ThemeBlastOverlay extends StatelessWidget {
+  const _ThemeBlastOverlay({
+    required this.progress,
+    required this.origin,
+    required this.fillColor,
+    required this.ringColor,
+  });
+
+  final double progress;
+  final Offset origin;
+  final Color fillColor;
+  final Color ringColor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (progress <= 0 || progress >= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return CustomPaint(
+      painter: _ThemeBlastPainter(
+        progress: progress,
+        origin: origin,
+        fillColor: fillColor,
+        ringColor: ringColor,
+      ),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _ThemeBlastPainter extends CustomPainter {
+  const _ThemeBlastPainter({
+    required this.progress,
+    required this.origin,
+    required this.fillColor,
+    required this.ringColor,
+  });
+
+  final double progress;
+  final Offset origin;
+  final Color fillColor;
+  final Color ringColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final clampedOrigin = Offset(
+      origin.dx.clamp(0.0, size.width),
+      origin.dy.clamp(0.0, size.height),
+    );
+
+    final maxRadius = [
+      (clampedOrigin - Offset.zero).distance,
+      (clampedOrigin - Offset(size.width, 0)).distance,
+      (clampedOrigin - Offset(0, size.height)).distance,
+      (clampedOrigin - Offset(size.width, size.height)).distance,
+    ].reduce(math.max);
+
+    final eased = Curves.easeInOutCubic.transform(progress);
+    final radius = maxRadius * eased;
+    final fillOpacity = progress < 0.58
+        ? 0.98
+        : ((1 - progress) / 0.42).clamp(0.0, 1.0) * 0.98;
+    final ringOpacity = ((1 - progress) / 0.55).clamp(0.0, 1.0);
+
+    final fillPaint = Paint()
+      ..color = fillColor.withValues(alpha: fillOpacity)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(clampedOrigin, radius, fillPaint);
+
+    final shockRadius = radius * 1.04;
+    final ringPaint = Paint()
+      ..color = ringColor.withValues(alpha: ringOpacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10 + ((1 - progress) * 22);
+    canvas.drawCircle(clampedOrigin, shockRadius, ringPaint);
+
+    final innerGlowPaint = Paint()
+      ..color = Colors.white.withValues(alpha: ringOpacity * 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4 + ((1 - progress) * 8);
+    canvas.drawCircle(clampedOrigin, radius * 0.92, innerGlowPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ThemeBlastPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.origin != origin ||
+        oldDelegate.fillColor != fillColor ||
+        oldDelegate.ringColor != ringColor;
   }
 }
 

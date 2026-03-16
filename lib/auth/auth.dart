@@ -22,6 +22,7 @@ class AuthGate extends StatefulWidget {
     required this.themeStyle,
     required this.onThemeModeChanged,
     required this.onThemeStyleChanged,
+    required this.onThemeTriggerOrigin,
   });
 
   final GroceryStoreState store;
@@ -29,6 +30,7 @@ class AuthGate extends StatefulWidget {
   final AppThemeStyle themeStyle;
   final ValueChanged<ThemeMode> onThemeModeChanged;
   final ValueChanged<AppThemeStyle> onThemeStyleChanged;
+  final ValueChanged<Offset> onThemeTriggerOrigin;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -154,6 +156,7 @@ class _AuthGateState extends State<AuthGate> {
               themeStyle: widget.themeStyle,
               onThemeModeChanged: widget.onThemeModeChanged,
               onThemeStyleChanged: widget.onThemeStyleChanged,
+              onThemeTriggerOrigin: widget.onThemeTriggerOrigin,
             );
             childKey = 'admin-home';
           } else {
@@ -165,6 +168,7 @@ class _AuthGateState extends State<AuthGate> {
               themeStyle: widget.themeStyle,
               onThemeModeChanged: widget.onThemeModeChanged,
               onThemeStyleChanged: widget.onThemeStyleChanged,
+              onThemeTriggerOrigin: widget.onThemeTriggerOrigin,
             );
             childKey = 'client-home';
           }
@@ -179,6 +183,7 @@ class _AuthGateState extends State<AuthGate> {
                   themeStyle: widget.themeStyle,
                   onChanged: widget.onThemeModeChanged,
                   onStyleChanged: widget.onThemeStyleChanged,
+                  onTriggerOrigin: widget.onThemeTriggerOrigin,
                 ),
                 const SizedBox(width: 4),
                 TextButton(
@@ -291,6 +296,7 @@ class _AuthGateState extends State<AuthGate> {
                                 themeStyle: widget.themeStyle,
                                 onChanged: widget.onThemeModeChanged,
                                 onStyleChanged: widget.onThemeStyleChanged,
+                                onTriggerOrigin: widget.onThemeTriggerOrigin,
                               ),
                             ),
                             const SizedBox(height: 8),
