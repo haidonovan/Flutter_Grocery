@@ -1,6 +1,8 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../store/grocery_store_state.dart';
@@ -46,6 +48,7 @@ class ClientHome extends StatefulWidget {
 
 class _ClientHomeState extends State<ClientHome> {
   int _currentTabIndex = 0;
+  int _profileMotionEpoch = 0;
   bool _couponPrompted = false;
 
   String get _title {
@@ -71,6 +74,16 @@ class _ClientHomeState extends State<ClientHome> {
     _NavItem('Profile', Icons.person),
   ];
 
+
+  void _selectTab(int index) {
+    setState(() {
+      _currentTabIndex = index;
+      if (index == 4) {
+        _profileMotionEpoch += 1;
+      }
+    });
+  }
+
   Widget _buildMobileDrawer(bool isMobile) {
     final topItems = _navItems
         .take(_navItems.length - 1)
@@ -92,9 +105,7 @@ class _ClientHomeState extends State<ClientHome> {
                     title: Text(item.label),
                     selected: _currentTabIndex == index,
                     onTap: () {
-                      setState(() {
-                        _currentTabIndex = index;
-                      });
+                      _selectTab(index);
                       if (isMobile) {
                         Navigator.of(context).pop();
                       }
@@ -111,9 +122,7 @@ class _ClientHomeState extends State<ClientHome> {
                 title: Text(profileItem.label),
                 selected: _currentTabIndex == _navItems.length - 1,
                 onTap: () {
-                  setState(() {
-                    _currentTabIndex = _navItems.length - 1;
-                  });
+                  _selectTab(_navItems.length - 1);
                   if (isMobile) {
                     Navigator.of(context).pop();
                   }
@@ -164,6 +173,39 @@ class _ClientHomeState extends State<ClientHome> {
         '${local.year} '
         '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _showPurchaseSignature() async {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final overlayFuture = showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Purchase Signature',
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 680),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const _PurchaseSignatureOverlay();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+          reverseCurve: Curves.easeInOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: child,
+        );
+      },
+    );
+
+    Future<void>.delayed(const Duration(milliseconds: 1320), () {
+      if (mounted && navigator.canPop()) {
+        navigator.pop();
+      }
+    });
+
+    await overlayFuture;
   }
 
   Future<void> _showAnimatedNoticeDialog({
@@ -567,12 +609,14 @@ class _ClientHomeState extends State<ClientHome> {
       return;
     }
 
-    setState(() {
-      _currentTabIndex = 3;
-    });
+    _selectTab(3);
 
     final order = result.order;
     if (order != null) {
+      await _showPurchaseSignature();
+      if (!mounted) {
+        return;
+      }
       await _showInvoiceDialog(order);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -695,8 +739,10 @@ class _ClientHomeState extends State<ClientHome> {
               ),
             ),
             EntranceMotion(
+              key: ValueKey('profile-shell-$_profileMotionEpoch'),
               active: _currentTabIndex == 4,
               child: ProfilePage(
+                key: ValueKey('profile-page-$_profileMotionEpoch'),
                 userEmail: widget.userEmail,
                 totalOrders: orders.length,
                 onLogout: widget.onLogout,
@@ -706,6 +752,7 @@ class _ClientHomeState extends State<ClientHome> {
                 activeCoupons: widget.store.activeCoupons,
                 supportTickets: widget.store.mySupportTickets,
                 isLoading: widget.store.isInitializing,
+                motionEpoch: _profileMotionEpoch,
               ),
             ),
           ],
@@ -728,9 +775,7 @@ class _ClientHomeState extends State<ClientHome> {
                   padding: const EdgeInsets.only(right: 14),
                   child: IconButton(
                     onPressed: () {
-                      setState(() {
-                        _currentTabIndex = 2;
-                      });
+                      _selectTab(2);
                     },
                     tooltip: 'Open cart',
                     icon: Badge(
@@ -757,9 +802,7 @@ class _ClientHomeState extends State<ClientHome> {
                       )
                       .toList(),
                   onDestinationSelected: (index) {
-                    setState(() {
-                      _currentTabIndex = index;
-                    });
+                    _selectTab(index);
                   },
                 ),
         );
@@ -773,6 +816,220 @@ class _NavItem {
 
   final String label;
   final IconData icon;
+}
+
+
+class _PurchaseSignatureOverlay extends StatelessWidget {
+  const _PurchaseSignatureOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const signatureColor = Color(0xFFE2B24B);
+    const signatureGlow = Color(0xFFFFE1A0);
+
+    return Material(
+      color: Colors.transparent,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 1120),
+        curve: Curves.easeInOutCubic,
+        builder: (context, value, child) {
+          final reveal = Curves.easeOutQuart.transform(value.clamp(0.0, 1.0));
+          final settle = Curves.easeInOutCubic.transform(value.clamp(0.0, 1.0));
+          final blur = 3 + (7 * settle);
+          final penTravel = Curves.easeOutExpo.transform((value * 1.04).clamp(0.0, 1.0));
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.16 + (0.42 * settle)),
+                ),
+              ),
+              Center(
+                child: Transform.translate(
+                  offset: Offset(0, 28 * (1 - settle)),
+                  child: Opacity(
+                    opacity: settle,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final maxWidth = constraints.maxWidth;
+                        final width = (maxWidth * 0.82).clamp(300.0, 1100.0);
+                        final fontSize = (width * 0.28).clamp(82.0, 220.0);
+                        final leftInset = (fontSize * 0.14).clamp(12.0, 28.0);
+                        final rightInset = (fontSize * 0.26).clamp(24.0, 46.0);
+                        final drawingWidth = width - leftInset - rightInset;
+                        final baselineWave = math.sin(penTravel * math.pi * 1.95) * (fontSize * 0.045);
+                        final penX = leftInset + (drawingWidth * penTravel);
+                        final penY = -(fontSize * 0.06) + baselineWave;
+
+                        return SizedBox(
+                          width: width,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                height: fontSize * 1.34,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.center,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          left: leftInset,
+                                          right: rightInset,
+                                        ),
+                                        child: Text(
+                                          'Signature',
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.greatVibes(
+                                            fontSize: fontSize,
+                                            fontWeight: FontWeight.w400,
+                                            color: signatureColor.withValues(alpha: 0.16),
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.center,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          left: leftInset,
+                                          right: rightInset,
+                                        ),
+                                        child: ShaderMask(
+                                          blendMode: BlendMode.srcIn,
+                                          shaderCallback: (bounds) {
+                                            final visibleWidth = bounds.width * reveal;
+                                            return LinearGradient(
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                              colors: [
+                                                signatureColor,
+                                                signatureGlow,
+                                                signatureColor,
+                                                signatureColor.withValues(alpha: 0.0),
+                                              ],
+                                              stops: [
+                                                0,
+                                                (visibleWidth / bounds.width)
+                                                        .clamp(0.0, 1.0) *
+                                                    0.62,
+                                                (visibleWidth / bounds.width).clamp(0.0, 1.0),
+                                                ((visibleWidth + 18) / bounds.width).clamp(
+                                                  0.0,
+                                                  1.0,
+                                                ),
+                                              ],
+                                            ).createShader(bounds);
+                                          },
+                                          child: ClipRect(
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              widthFactor: reveal,
+                                              child: Text(
+                                                'Signature',
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.greatVibes(
+                                                  fontSize: fontSize,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: signatureColor,
+                                                  letterSpacing: 0.2,
+                                                  shadows: [
+                                                    Shadow(
+                                                      color: signatureGlow.withValues(alpha: 0.48),
+                                                      blurRadius: 20,
+                                                      offset: const Offset(0, 0),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: penX,
+                                      top: (fontSize * 0.58) + penY,
+                                      child: Opacity(
+                                        opacity: (reveal - 0.06).clamp(0.0, 1.0),
+                                        child: Container(
+                                          width: 14,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: signatureGlow,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: signatureGlow.withValues(alpha: 0.9),
+                                                blurRadius: 22,
+                                                spreadRadius: 2,
+                                              ),
+                                              BoxShadow(
+                                                color: signatureColor.withValues(alpha: 0.52),
+                                                blurRadius: 34,
+                                                spreadRadius: 8,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                width: width * 0.6 * reveal,
+                                height: 2.2,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      signatureColor.withValues(alpha: 0),
+                                      signatureGlow,
+                                      signatureColor.withValues(alpha: 0),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: signatureGlow.withValues(alpha: 0.28),
+                                      blurRadius: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Opacity(
+                                opacity: (settle - 0.2).clamp(0.0, 1.0),
+                                child: Text(
+                                  'Purchase confirmed',
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                    letterSpacing: 1.8,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _InvoiceStat extends StatelessWidget {

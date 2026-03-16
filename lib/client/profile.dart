@@ -18,6 +18,7 @@ class ProfilePage extends StatefulWidget {
     required this.activeCoupons,
     required this.supportTickets,
     required this.isLoading,
+    this.motionEpoch = 0,
   });
 
   final String userEmail;
@@ -29,6 +30,7 @@ class ProfilePage extends StatefulWidget {
   final List<Coupon> activeCoupons;
   final List<SupportTicket> supportTickets;
   final bool isLoading;
+  final int motionEpoch;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -253,143 +255,151 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 12),
         EntranceMotion(
+          key: ValueKey('coupon-wallet-${widget.motionEpoch}'),
           delay: const Duration(milliseconds: 240),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: _showCoupons,
-            child: Ink(
-              decoration: BoxDecoration(
+          child: RepaintBoundary(
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: walletGradient,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: walletForeground.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            Icons.confirmation_number_outlined,
-                            color: walletForeground,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Coupon wallet',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      color: walletForeground,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                widget.activeCoupons.isNotEmpty
-                                    ? 'Tap to view, copy, and use your coupons'
-                                    : 'No coupons yet. New offers will appear here.',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: walletForeground.withValues(alpha: 0.82),
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 18,
-                          color: walletForeground,
-                        ),
-                      ],
+                onTap: _showCoupons,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: walletGradient,
                     ),
-                    const SizedBox(height: 18),
-                    if (widget.activeCoupons.isNotEmpty)
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: widget.activeCoupons.take(3).map((coupon) {
-                          final valueLabel = coupon.type == 'percent'
-                              ? '${coupon.value.toStringAsFixed(0)}% OFF'
-                              : '\$${coupon.value.toStringAsFixed(2)} OFF';
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: walletForeground.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                Icons.confirmation_number_outlined,
+                                color: walletForeground,
+                              ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Coupon wallet',
+                                    style: Theme.of(context).textTheme.titleLarge
+                                        ?.copyWith(
+                                          color: walletForeground,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    widget.activeCoupons.isNotEmpty
+                                        ? 'Tap to view, copy, and use your coupons'
+                                        : 'No coupons yet. New offers will appear here.',
+                                    style: Theme.of(context).textTheme.bodyMedium
+                                        ?.copyWith(
+                                          color: walletForeground.withValues(alpha: 0.82),
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 18,
+                              color: walletForeground,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        if (widget.activeCoupons.isNotEmpty)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: widget.activeCoupons.take(3).map((coupon) {
+                              final valueLabel = coupon.type == 'percent'
+                                  ? '${coupon.value.toStringAsFixed(0)}% OFF'
+                                  : '\$${coupon.value.toStringAsFixed(2)} OFF';
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: walletForeground.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: walletForeground.withValues(alpha: 0.16),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${coupon.code}  $valueLabel',
+                                  style: TextStyle(
+                                    color: walletForeground,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          )
+                        else
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: walletForeground.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(999),
+                              color: walletForeground.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: walletForeground.withValues(alpha: 0.16),
+                                color: walletForeground.withValues(alpha: 0.12),
                               ),
                             ),
                             child: Text(
-                              '${coupon.code}  $valueLabel',
-                              style: TextStyle(
-                                color: walletForeground,
-                                fontWeight: FontWeight.w600,
+                              'When the store publishes a promo or assigns a coupon to your account, you will see it here.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: walletForeground.withValues(alpha: 0.86),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      )
-                    else
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: walletForeground.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: walletForeground.withValues(alpha: 0.12),
                           ),
-                        ),
-                        child: Text(
-                          'When the store publishes a promo or assigns a coupon to your account, you will see it here.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: walletForeground.withValues(alpha: 0.86),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Text(
-                          widget.activeCoupons.isNotEmpty
-                              ? '${widget.activeCoupons.length} available'
-                              : 'Waiting for offers',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: walletForeground.withValues(alpha: 0.82),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          widget.activeCoupons.isNotEmpty
-                              ? 'Open wallet'
-                              : 'Check offers',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: walletForeground,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Text(
+                              widget.activeCoupons.isNotEmpty
+                                  ? '${widget.activeCoupons.length} available'
+                                  : 'Waiting for offers',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: walletForeground.withValues(alpha: 0.82),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              widget.activeCoupons.isNotEmpty
+                                  ? 'Open wallet'
+                                  : 'Check offers',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: walletForeground,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -698,160 +708,154 @@ class _CouponWalletSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 560),
-      curve: Curves.easeInOutCubic,
-      builder: (context, value, child) {
-        final offset = 40 * (1 - value);
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(offset: Offset(0, offset), child: child),
-        );
-      },
-      child: DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.8,
-        minChildSize: 0.55,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 52,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.8,
+      minChildSize: 0.55,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 52,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-                  child: EntranceMotion(
-                    delay: const Duration(milliseconds: 80),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Coupon wallet',
-                                style: theme.textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${coupons.length} ready to use',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (coupons.isNotEmpty)
-                  Expanded(
-                    child: ListView.separated(
-                      controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      itemCount: coupons.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final coupon = coupons[index];
-                        return EntranceMotion(
-                          delay: Duration(milliseconds: 120 + (index * 70)),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              CouponBanner(coupon: coupon),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(text: coupon.code),
-                                        );
-                                        if (!context.mounted) {
-                                          return;
-                                        }
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Coupon ${coupon.code} copied.'),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.copy_rounded),
-                                      label: const Text('Copy code'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                      child: EntranceMotion(
-                        delay: const Duration(milliseconds: 140),
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.45),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                child: EntranceMotion(
+                  delay: const Duration(milliseconds: 60),
+                  duration: const Duration(milliseconds: 420),
+                  beginOffset: const Offset(0, 0.035),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Coupon wallet',
+                              style: theme.textTheme.headlineSmall,
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${coupons.length} ready to use',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (coupons.isNotEmpty)
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: coupons.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final coupon = coupons[index];
+                      return EntranceMotion(
+                        delay: Duration(milliseconds: 100 + (index * 60)),
+                        duration: const Duration(milliseconds: 420),
+                        beginOffset: const Offset(0, 0.03),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            CouponBanner(coupon: coupon),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await Clipboard.setData(
+                                        ClipboardData(text: coupon.code),
+                                      );
+                                      if (!context.mounted) {
+                                        return;
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Coupon ${coupon.code} copied.'),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.copy_rounded),
+                                    label: const Text('Copy code'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                    child: EntranceMotion(
+                      delay: const Duration(milliseconds: 120),
+                      duration: const Duration(milliseconds: 420),
+                      beginOffset: const Offset(0, 0.035),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: scheme.outlineVariant.withValues(alpha: 0.45),
                           ),
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.local_offer_outlined,
-                                size: 36,
-                                color: scheme.primary,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No coupons yet',
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'When the store publishes an offer or assigns one to your account, it will appear here and you can copy the code into checkout.',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
+                        ),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.local_offer_outlined,
+                              size: 36,
+                              color: scheme.primary,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No coupons yet',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'When the store publishes an offer or assigns one to your account, it will appear here and you can copy the code into checkout.',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-              ],
-            ),
-          );
-        },
-      ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
