@@ -15,10 +15,11 @@ class CartViewItem {
 }
 
 class PlaceOrderResult {
-  const PlaceOrderResult({required this.success, this.message});
+  const PlaceOrderResult({required this.success, this.message, this.order});
 
   final bool success;
   final String? message;
+  final OrderRecord? order;
 }
 
 class AuthResult {
@@ -695,18 +696,26 @@ class GroceryStoreState extends ChangeNotifier {
 
     _setLoading(true);
     try {
-      await _apiClient.postJson('/api/orders', {
+      final response = await _apiClient.postJson('/api/orders', {
         'shippingAddress': shippingAddress,
         'paymentMethod': paymentMethod,
         'lines': lines,
         'couponCode': couponCode,
       });
 
+      final createdOrder = _orderFromApi(response);
+      final createdLines = await _loadOrderLines(createdOrder.id);
+      final completedOrder = createdOrder.copyWith(lines: createdLines);
+
       _cart.clear();
       await refreshAll();
-      return const PlaceOrderResult(
+      return PlaceOrderResult(
         success: true,
         message: 'Order placed successfully.',
+        order: _orders.firstWhere(
+          (order) => order.id == completedOrder.id,
+          orElse: () => completedOrder,
+        ),
       );
     } on ApiException catch (err) {
       return PlaceOrderResult(success: false, message: err.message);
@@ -738,6 +747,34 @@ class GroceryStoreState extends ChangeNotifier {
       'imageUrl': imageUrl,
     });
     await refreshAll();
+  }
+
+  Future<AuthResult> importInventoryCsv(String csv) async {
+    if (!isAdmin) {
+      return const AuthResult(
+        success: false,
+        message: 'Admin access required.',
+      );
+    }
+
+    try {
+      final response = await _apiClient.postJson('/api/products/restock/import', {
+        'csv': csv,
+      });
+      await refreshAll();
+      final importedCount = (response['importedCount'] as num?)?.toInt() ?? 0;
+      return AuthResult(
+        success: true,
+        message: 'Imported $importedCount inventory row${importedCount == 1 ? '' : 's'}.',
+      );
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return const AuthResult(
+        success: false,
+        message: 'Failed to import inventory.',
+      );
+    }
   }
 
   Future<AuthResult> importProductsCsv(String csv) async {
@@ -1006,9 +1043,26 @@ class GroceryStoreState extends ChangeNotifier {
     await _loadCoupons();
   }
 
-  Future<void> deleteCoupon(int id) async {
-    await _apiClient.delete('/api/coupons/$id');
-    await _loadCoupons();
+  Future<AuthResult> deleteCoupon(int id) async {
+    try {
+      final response = await _apiClient.deleteJson('/api/coupons/$id');
+      await _loadCoupons();
+      return AuthResult(
+        success: true,
+        message:
+            response['message']?.toString() ??
+            (response['archived'] == true
+                ? 'Coupon deactivated because it already has redemption history.'
+                : 'Coupon deleted.'),
+      );
+    } on ApiException catch (err) {
+      return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return const AuthResult(
+        success: false,
+        message: 'Failed to delete coupon.',
+      );
+    }
   }
 
   Future<String?> uploadImage(XFile file) async {

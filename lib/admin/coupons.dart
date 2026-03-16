@@ -385,7 +385,17 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
       return;
     }
 
-    await _runCouponAction(() => widget.store.deleteCoupon(coupon.id), successMessage: 'Coupon deleted.');
+    final result = await widget.store.deleteCoupon(coupon.id);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.message ?? (result.success ? 'Coupon deleted.' : 'Failed to delete coupon.'),
+        ),
+      ),
+    );
   }
 
   Future<void> _pickDateRange() async {
@@ -470,7 +480,7 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
         ],
       ),
     ];
-    final success = await exportCsv('coupons_export.csv', buildCsv(rows));
+    final success = await exportCsv(csvFilename('coupons_export'), buildCsv(rows));
     if (!mounted) {
       return;
     }

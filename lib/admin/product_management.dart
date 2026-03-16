@@ -33,6 +33,19 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
   final Set<String> _deletingProductIds = <String>{};
   bool _savingProduct = false;
 
+  int _countCsvPreviewRows(String rawCsv) {
+    final normalized = rawCsv.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final lines = normalized
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.length <= 1) {
+      return 0;
+    }
+    return lines.length - 1;
+  }
+
   Future<void> _addProduct(BuildContext context) async {
     final data = await Navigator.of(context).push<ProductFormData>(
       AppPageRoute<ProductFormData>(
@@ -261,7 +274,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
     ];
 
     final success = await exportCsv(
-      'products_export.csv',
+      csvFilename('products_export'),
       buildCsv(rows),
     );
     if (!mounted) {
@@ -291,6 +304,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
           builder: (context, setDialogState) {
             final theme = Theme.of(context);
             final scheme = theme.colorScheme;
+            final previewRows = _countCsvPreviewRows(controller.text);
 
             return EntranceMotion(
               duration: const Duration(milliseconds: 420),
@@ -390,16 +404,44 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             TextButton(
                               onPressed: () {
                                 controller.text = _csvTemplate;
+                                setDialogState(() {
+                                  errorText = null;
+                                });
                               },
                               child: const Text('Use sample'),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            previewRows == 0
+                                ? 'No product rows detected yet.'
+                                : '$previewRows product row${previewRows == 1 ? '' : 's'} ready to import.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         TextField(
                           controller: controller,
                           minLines: 10,
                           maxLines: 16,
+                          onChanged: (_) {
+                            setDialogState(() {
+                              errorText = null;
+                            });
+                          },
                           decoration: InputDecoration(
                             hintText: 'Paste product CSV here',
                             alignLabelWithHint: true,
@@ -427,6 +469,13 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             if (controller.text.trim().isEmpty) {
                               setDialogState(() {
                                 errorText = 'Paste CSV content first.';
+                              });
+                              return;
+                            }
+                            if (previewRows == 0) {
+                              setDialogState(() {
+                                errorText =
+                                    'No product rows were found under the header.';
                               });
                               return;
                             }
@@ -461,7 +510,13 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.file_upload_outlined),
-                    label: Text(isSubmitting ? 'Importing...' : 'Import'),
+                    label: Text(
+                      isSubmitting
+                          ? 'Importing...'
+                          : previewRows == 0
+                              ? 'Import'
+                              : 'Import $previewRows',
+                    ),
                   ),
                 ],
               ),

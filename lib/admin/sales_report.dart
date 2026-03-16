@@ -120,7 +120,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
         (entry) => ['Top Product', entry.key, entry.value.toString(), ''],
       ),
     ];
-    final success = await exportCsv('sales_export.csv', buildCsv(rows));
+    final success = await exportCsv(csvFilename('sales_export'), buildCsv(rows));
     if (!mounted) {
       return;
     }

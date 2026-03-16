@@ -171,6 +171,93 @@ router.post('/import', requireAuth, requireRole('admin'), async (req, res) => {
   return res.status(201).json({ importedCount: normalizedRows.length });
 });
 
+router.post('/restock/import', requireAuth, requireRole('admin'), async (req, res) => {
+  const csv = req.body?.csv?.toString() ?? '';
+  if (!csv.trim()) {
+    return res.status(400).json({ error: 'CSV content is required.' });
+  }
+
+  let parsedRows;
+  try {
+    parsedRows = parseCsv(csv);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  if (parsedRows.length === 0) {
+    return res.status(400).json({ error: 'No inventory rows were found.' });
+  }
+
+  const normalizedRows = [];
+  const productIds = new Set();
+
+  for (let index = 0; index < parsedRows.length; index += 1) {
+    const row = parsedRows[index];
+    const line = index + 2;
+    const productId = row.productId?.trim();
+    const rawQuantity = row.quantityAdded?.trim() || row.quantity?.trim();
+
+    if (!productId) {
+      return res.status(400).json({ error: `Row ${line} is missing productId.` });
+    }
+
+    const quantityAdded = Number(rawQuantity);
+    if (!Number.isFinite(quantityAdded) || quantityAdded <= 0 || !Number.isInteger(quantityAdded)) {
+      return res.status(400).json({
+        error: `Row ${line} has an invalid quantityAdded value.`,
+      });
+    }
+
+    normalizedRows.push({
+      productId,
+      quantityAdded,
+    });
+    productIds.add(productId);
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: [...productIds] } },
+  });
+  const productMap = new Map(products.map((product) => [product.id, product]));
+
+  for (const row of normalizedRows) {
+    if (!productMap.has(row.productId)) {
+      return res.status(404).json({
+        error: `Product ${row.productId} was not found.`,
+      });
+    }
+  }
+
+  const operations = [];
+  for (const row of normalizedRows) {
+    const product = productMap.get(row.productId);
+    const nextStock = product.stock + row.quantityAdded;
+
+    operations.push(
+      prisma.product.update({
+        where: { id: product.id },
+        data: { stock: nextStock },
+      })
+    );
+    operations.push(
+      prisma.restock.create({
+        data: {
+          productId: product.id,
+          quantityAdded: row.quantityAdded,
+        },
+      })
+    );
+
+    productMap.set(product.id, {
+      ...product,
+      stock: nextStock,
+    });
+  }
+
+  await prisma.$transaction(operations);
+  return res.status(201).json({ importedCount: normalizedRows.length });
+});
+
 router.put('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const {
     name,
@@ -418,7 +505,10 @@ function parseCsv(content) {
     return [];
   }
 
-  const headers = rows[0].map((value) => value.trim());
+  const headers = rows[0].map((value, index) => {
+    const cleaned = value.trim();
+    return index == 0 ? cleaned.replace(/^\\uFEFF/, '') : cleaned;
+  });
   return rows.slice(1).map((row) => {
     const record = {};
     headers.forEach((header, index) => {
@@ -431,3 +521,4 @@ function parseCsv(content) {
 }
 
 export default router;
+

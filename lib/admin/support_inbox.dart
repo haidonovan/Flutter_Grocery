@@ -93,7 +93,7 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
         ],
       ),
     ];
-    final success = await exportCsv('support_export.csv', buildCsv(rows));
+    final success = await exportCsv(csvFilename('support_export'), buildCsv(rows));
     if (!mounted) {
       return;
     }

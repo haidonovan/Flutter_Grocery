@@ -88,17 +88,22 @@ class _ProductListPageState extends State<ProductListPage> {
     return 2;
   }
 
-  double _cardAspectRatio(double width, int columns) {
-    if (columns == 2 && width < 430) {
-      return 0.44;
-    }
-    if (columns == 2) {
-      return 0.52;
-    }
-    if (columns == 3) {
-      return 0.72;
-    }
-    return 0.8;
+  double _cardMainAxisExtent(double width, int columns) {
+    const horizontalPadding = 32.0;
+    const crossAxisSpacing = 16.0;
+    final availableWidth = width - horizontalPadding;
+    final cardWidth =
+        (availableWidth - ((columns - 1) * crossAxisSpacing)) / columns;
+    final imageHeight = cardWidth * 0.75;
+
+    final detailsHeight = switch (columns) {
+      2 when width < 430 => 188.0,
+      2 => 182.0,
+      3 => 176.0,
+      _ => 170.0,
+    };
+
+    return imageHeight + detailsHeight;
   }
 
   int _pageSizeForColumns(int columns) => columns * 3;
@@ -122,7 +127,7 @@ class _ProductListPageState extends State<ProductListPage> {
     final products = _filtered;
     final width = MediaQuery.of(context).size.width;
     final columns = _columnsForWidth(width);
-    final cardAspectRatio = _cardAspectRatio(width, columns);
+    final cardMainAxisExtent = _cardMainAxisExtent(width, columns);
     final categories = _selectedCategory == 'All'
         ? products.map((p) => p.category).toSet().toList()
         : [_selectedCategory];
@@ -334,7 +339,7 @@ class _ProductListPageState extends State<ProductListPage> {
                         crossAxisCount: columns,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        childAspectRatio: cardAspectRatio,
+                        mainAxisExtent: cardMainAxisExtent,
                       ),
                       itemCount: visibleProducts.length,
                       itemBuilder: (context, index) {
@@ -494,82 +499,82 @@ class _ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.category,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.category,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.description,
-                      maxLines: isCompact ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          '\$${product.discountedPrice.toStringAsFixed(2)}',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: isCompact ? 18 : null,
-                              ),
-                        ),
-                        if (product.isDiscountActive)
+                      const SizedBox(height: 4),
+                      Text(
+                        product.description,
+                        maxLines: isCompact ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
                           Text(
-                            '${product.discountPercent.toStringAsFixed(0)}% off',
-                            style: const TextStyle(color: Colors.green),
+                            '\$${product.discountedPrice.toStringAsFixed(2)}',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: isCompact ? 18 : null,
+                                ),
                           ),
-                        Text(
-                          '${product.ratingAvg.toStringAsFixed(1)} *',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          product.stock > 0
-                              ? '${product.stock} in stock'
-                              : 'Out of stock',
-                          style: TextStyle(
-                            color: product.stock <= 5 ? Colors.red : Colors.green,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (inCartQty > 0)
+                          if (product.isDiscountActive)
+                            Text(
+                              '${product.discountPercent.toStringAsFixed(0)}% off',
+                              style: const TextStyle(color: Colors.green),
+                            ),
                           Text(
-                            'In cart: $inCartQty',
-                            style: const TextStyle(fontSize: 12),
+                            '${product.ratingAvg.toStringAsFixed(1)} *',
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: PressScale(
-                    enabled: canAdd,
-                    child: FilledButton(
-                      onPressed: canAdd ? onAdd : null,
-                      child: Text(canAdd ? 'Add to cart' : 'Out of stock'),
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            product.stock > 0
+                                ? '${product.stock} in stock'
+                                : 'Out of stock',
+                            style: TextStyle(
+                              color: product.stock <= 5 ? Colors.red : Colors.green,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (inCartQty > 0)
+                            Text(
+                              'In cart: $inCartQty',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                        ],
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        child: PressScale(
+                          enabled: canAdd,
+                          child: FilledButton(
+                            onPressed: canAdd ? onAdd : null,
+                            child: Text(canAdd ? 'Add to cart' : 'Out of stock'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -2,6 +2,11 @@ import 'csv_export_stub.dart'
     if (dart.library.html) 'csv_export_web.dart'
     as exporter;
 
+String csvFilename(String baseName, {DateTime? now}) {
+  final date = (now ?? DateTime.now()).toIso8601String().split('T').first;
+  return '${baseName}_$date.csv';
+}
+
 String buildCsv(List<List<String>> rows) {
   return rows
       .map(

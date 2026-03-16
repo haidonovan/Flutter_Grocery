@@ -170,7 +170,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               decoration: InputDecoration(
                 labelText: 'Enter coupon (optional)',
                 helperText:
-                    'Copy a code from Profile > Coupon wallet and paste it here.',
+                    'Copy a code from Profile > Coupon wallet and paste it here. Each account can redeem a coupon only once.',
                 filled: true,
                 fillColor: scheme.surfaceContainerHighest.withValues(
                   alpha: 0.55,

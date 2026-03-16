@@ -2,9 +2,11 @@
 
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:typed_data';
 
 Future<bool> exportCsv(String filename, String csvContent) async {
-  final bytes = utf8.encode(csvContent);
+  // Prefix with a UTF-8 BOM so Excel opens CSV content reliably.
+  final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...utf8.encode(csvContent)]);
   final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
   final url = html.Url.createObjectUrlFromBlob(blob);
   final anchor = html.AnchorElement(href: url)

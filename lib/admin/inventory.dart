@@ -1,8 +1,13 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import '../utils/csv_export.dart';
+import '../widgets/entrance_motion.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key, required this.store});
@@ -14,10 +19,27 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
+  static const String _inventoryCsvTemplate =
+      'productId,quantityAdded\n'
+      'p_2da7d0d3-8d1c-49bf-9429-3886a77a20f2,12';
+
   String _query = '';
   String _stockFilter = 'All';
   String _sort = 'Lowest stock';
   DateTimeRange? _restockRange;
+
+  int _countCsvPreviewRows(String rawCsv) {
+    final normalized = rawCsv.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final lines = normalized
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.length <= 1) {
+      return 0;
+    }
+    return lines.length - 1;
+  }
 
   Future<void> _restock(BuildContext context, Product product) async {
     final controller = TextEditingController();
@@ -69,6 +91,229 @@ class _InventoryPageState extends State<InventoryPage> {
         messenger.showSnackBar(SnackBar(content: Text(error.toString())));
       }
     }
+  }
+
+  Future<void> _importInventory(BuildContext context) async {
+    final controller = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    var isSubmitting = false;
+    String? errorText;
+
+    final resultMessage = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final theme = Theme.of(context);
+          final scheme = theme.colorScheme;
+          final previewRows = _countCsvPreviewRows(controller.text);
+
+          return EntranceMotion(
+            duration: const Duration(milliseconds: 420),
+            beginOffset: const Offset(0.06, 0),
+            child: AlertDialog(
+              title: const Text('Import inventory from CSV'),
+              content: SizedBox(
+                width: 640,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Paste restock rows here. Required columns: productId, quantityAdded.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: SelectableText(
+                          _inventoryCsvTemplate,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final result = await FilePicker.platform.pickFiles(
+                                      type: FileType.custom,
+                                      allowedExtensions: const ['csv'],
+                                      withData: true,
+                                    );
+                                    if (result == null ||
+                                        result.files.isEmpty ||
+                                        !context.mounted) {
+                                      return;
+                                    }
+
+                                    final file = result.files.single;
+                                    final bytes = file.bytes;
+                                    if (bytes == null) {
+                                      setDialogState(() {
+                                        errorText = 'Could not read the selected CSV file.';
+                                      });
+                                      return;
+                                    }
+
+                                    controller.text = utf8.decode(bytes);
+                                    setDialogState(() {
+                                      errorText = null;
+                                    });
+
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text('Loaded ${file.name} for import.')),
+                                    );
+                                  },
+                            icon: const Icon(Icons.attach_file_outlined),
+                            label: const Text('Choose CSV file'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                const ClipboardData(text: _inventoryCsvTemplate),
+                              );
+                              if (!context.mounted) {
+                                return;
+                              }
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('Inventory template copied.')),
+                              );
+                            },
+                            icon: const Icon(Icons.copy_all_outlined),
+                            label: const Text('Copy template'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              controller.text = _inventoryCsvTemplate;
+                              setDialogState(() {
+                                errorText = null;
+                              });
+                            },
+                            child: const Text('Use sample'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          previewRows == 0
+                              ? 'No inventory rows detected yet.'
+                              : '$previewRows inventory row${previewRows == 1 ? '' : 's'} ready to import.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: controller,
+                        minLines: 8,
+                        maxLines: 14,
+                        onChanged: (_) {
+                          setDialogState(() {
+                            errorText = null;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Paste inventory CSV here',
+                          alignLabelWithHint: true,
+                          errorText: errorText,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (controller.text.trim().isEmpty) {
+                            setDialogState(() {
+                              errorText = 'Paste CSV content first.';
+                            });
+                            return;
+                          }
+                          if (previewRows == 0) {
+                            setDialogState(() {
+                              errorText = 'No inventory rows were found under the header.';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                            errorText = null;
+                          });
+
+                          final result = await widget.store.importInventoryCsv(controller.text);
+                          if (!dialogContext.mounted) {
+                            return;
+                          }
+
+                          if (!result.success) {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              errorText = result.message ?? 'Import failed.';
+                            });
+                            return;
+                          }
+
+                          Navigator.of(dialogContext).pop(result.message);
+                        },
+                  icon: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.file_upload_outlined),
+                  label: Text(
+                    isSubmitting
+                        ? 'Importing...'
+                        : previewRows == 0
+                            ? 'Import'
+                            : 'Import $previewRows',
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (!mounted || resultMessage == null) {
+      return;
+    }
+
+    messenger.showSnackBar(SnackBar(content: Text(resultMessage)));
   }
 
   Future<void> _pickRestockRange() async {
@@ -154,7 +399,10 @@ class _InventoryPageState extends State<InventoryPage> {
         ],
       ),
     ];
-    final success = await exportCsv('inventory_export.csv', buildCsv(rows));
+    final success = await exportCsv(
+      csvFilename('inventory_export'),
+      buildCsv(rows),
+    );
     if (!mounted) {
       return;
     }
@@ -338,6 +586,12 @@ class _InventoryPageState extends State<InventoryPage> {
                     '${products.length} product${products.length == 1 ? '' : 's'}',
                   ),
                   const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed: () => _importInventory(context),
+                    icon: const Icon(Icons.file_upload_outlined),
+                    label: const Text('Import CSV'),
+                  ),
+                  const SizedBox(width: 8),
                   OutlinedButton.icon(
                     onPressed: () => _exportInventory(products),
                     icon: const Icon(Icons.download_outlined),

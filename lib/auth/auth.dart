@@ -115,14 +115,39 @@ class _AuthGateState extends State<AuthGate> {
     });
   }
 
+  Widget _buildAuthTransition(Widget child, Animation<double> animation) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeInOutCubic,
+      reverseCurve: Curves.easeInOutCubic,
+    );
+
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0, end: 1).animate(curved),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(-0.03, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
+        Widget child;
+        String childKey;
+
         if (widget.store.isAuthenticated) {
           if (widget.store.isAdmin) {
-            return AdminHome(
+            child = AdminHome(
               store: widget.store,
               onLogout: _handleLogout,
               themeMode: widget.themeMode,
@@ -130,21 +155,22 @@ class _AuthGateState extends State<AuthGate> {
               onThemeModeChanged: widget.onThemeModeChanged,
               onThemeStyleChanged: widget.onThemeStyleChanged,
             );
+            childKey = 'admin-home';
+          } else {
+            child = ClientHome(
+              userEmail: widget.store.userEmail,
+              store: widget.store,
+              onLogout: _handleLogout,
+              themeMode: widget.themeMode,
+              themeStyle: widget.themeStyle,
+              onThemeModeChanged: widget.onThemeModeChanged,
+              onThemeStyleChanged: widget.onThemeStyleChanged,
+            );
+            childKey = 'client-home';
           }
-          return ClientHome(
-            userEmail: widget.store.userEmail,
-            store: widget.store,
-            onLogout: _handleLogout,
-            themeMode: widget.themeMode,
-            themeStyle: widget.themeStyle,
-            onThemeModeChanged: widget.onThemeModeChanged,
-            onThemeStyleChanged: widget.onThemeStyleChanged,
-          );
-        }
-
-        if (_roleTab == _RoleTab.client && _showPublicShop) {
+        } else if (_roleTab == _RoleTab.client && _showPublicShop) {
           final products = widget.store.storefrontProducts;
-          return Scaffold(
+          child = Scaffold(
             appBar: AppBar(
               title: const Text('Shop'),
               actions: [
@@ -241,10 +267,10 @@ class _AuthGateState extends State<AuthGate> {
               ],
             ),
           );
-        }
-
-        return Scaffold(
-          body: SafeArea(
+          childKey = 'public-shop';
+        } else {
+          child = Scaffold(
+            body: SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
@@ -297,22 +323,12 @@ class _AuthGateState extends State<AuthGate> {
                             if (widget.store.isLoading)
                               const SizedBox(height: 12),
                             AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 350),
+                              duration: const Duration(milliseconds: 420),
+                              reverseDuration: const Duration(milliseconds: 360),
                               switchInCurve: Curves.easeInOutCubic,
                               switchOutCurve: Curves.easeInOutCubic,
-                              transitionBuilder: (child, animation) {
-                                final offset = Tween<Offset>(
-                                  begin: const Offset(-0.08, 0),
-                                  end: Offset.zero,
-                                ).animate(animation);
-                                return FadeTransition(
-                                  opacity: animation,
-                                  child: SlideTransition(
-                                    position: offset,
-                                    child: child,
-                                  ),
-                                );
-                              },
+                              transitionBuilder: (child, animation) =>
+                                  _buildAuthTransition(child, animation),
                               child: _roleTab == _RoleTab.admin
                                   ? _AdminLoginForm(
                                       key: const ValueKey('admin-login'),
@@ -365,6 +381,32 @@ class _AuthGateState extends State<AuthGate> {
                 ),
               ),
             ),
+          ),
+          );
+          childKey = _roleTab == _RoleTab.admin
+              ? 'admin-auth'
+              : _showRegister
+                  ? 'client-register'
+                  : 'client-login';
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 480),
+          reverseDuration: const Duration(milliseconds: 420),
+          switchInCurve: Curves.easeInOutCubic,
+          switchOutCurve: Curves.easeInOutCubic,
+          layoutBuilder: (currentChild, previousChildren) => Stack(
+            fit: StackFit.expand,
+            children: [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          ),
+          transitionBuilder: (child, animation) =>
+              _buildAuthTransition(child, animation),
+          child: KeyedSubtree(
+            key: ValueKey(childKey),
+            child: child,
           ),
         );
       },
