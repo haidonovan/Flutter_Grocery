@@ -35,6 +35,7 @@ class _ProductListPageState extends State<ProductListPage> {
   String _selectedCategory = 'All';
   String _sort = 'Featured';
   final Map<String, int> _categoryPages = {};
+  int _contentMotionEpoch = 0;
 
   List<String> get _categories {
     final values = <String>{'All'};
@@ -220,6 +221,7 @@ class _ProductListPageState extends State<ProductListPage> {
                           setState(() {
                             _selectedCategory = category;
                             _categoryPages.clear();
+                            _contentMotionEpoch += 1;
                           });
                         },
                       );
@@ -351,8 +353,12 @@ class _ProductListPageState extends State<ProductListPage> {
                             currentCartQty < product.stock && product.stock > 0;
 
                         return EntranceMotion(
-                          delay: Duration(milliseconds: 80 + (index * 40)),
-                          duration: const Duration(milliseconds: 850),
+                          key: ValueKey(
+                            'product-motion-$_contentMotionEpoch-$product.id',
+                          ),
+                          delay: Duration(milliseconds: 60 + (index * 55)),
+                          duration: const Duration(milliseconds: 560),
+                          beginOffset: const Offset(0, -0.06),
                           child: _ProductCard(
                             product: product,
                             canAdd: canAdd,
@@ -837,3 +843,4 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
     );
   }
 }
+
