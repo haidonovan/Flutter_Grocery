@@ -75,6 +75,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       }
       return _onlineApiBaseUrl;
     }
+    if (kReleaseMode) {
+      return _onlineApiBaseUrl;
+    }
     return 'http://localhost:4000';
   }
 
@@ -90,6 +93,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       if (host == 'localhost' || host == '127.0.0.1') {
         return _onlineApiBaseUrl;
       }
+      return null;
+    }
+    if (kReleaseMode) {
       return null;
     }
     return _onlineApiBaseUrl;
