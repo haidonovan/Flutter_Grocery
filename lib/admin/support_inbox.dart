@@ -93,7 +93,10 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
         ],
       ),
     ];
-    final success = await exportCsv(csvFilename('support_export'), buildCsv(rows));
+    final success = await exportCsv(
+      csvFilename('support_export'),
+      buildCsv(rows),
+    );
     if (!mounted) {
       return;
     }
@@ -440,8 +443,9 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
                                                 value: 'close',
                                                 enabled:
                                                     ticket.status != 'closed',
-                                                child:
-                                                    const Text('Close ticket'),
+                                                child: const Text(
+                                                  'Close ticket',
+                                                ),
                                               ),
                                             ],
                                           ),

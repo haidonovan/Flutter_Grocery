@@ -147,11 +147,12 @@ class _InventoryPageState extends State<InventoryPage> {
                             onPressed: isSubmitting
                                 ? null
                                 : () async {
-                                    final result = await FilePicker.platform.pickFiles(
-                                      type: FileType.custom,
-                                      allowedExtensions: const ['csv'],
-                                      withData: true,
-                                    );
+                                    final result = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.custom,
+                                          allowedExtensions: const ['csv'],
+                                          withData: true,
+                                        );
                                     if (result == null ||
                                         result.files.isEmpty ||
                                         !context.mounted) {
@@ -162,7 +163,8 @@ class _InventoryPageState extends State<InventoryPage> {
                                     final bytes = file.bytes;
                                     if (bytes == null) {
                                       setDialogState(() {
-                                        errorText = 'Could not read the selected CSV file.';
+                                        errorText =
+                                            'Could not read the selected CSV file.';
                                       });
                                       return;
                                     }
@@ -173,7 +175,11 @@ class _InventoryPageState extends State<InventoryPage> {
                                     });
 
                                     messenger.showSnackBar(
-                                      SnackBar(content: Text('Loaded ${file.name} for import.')),
+                                      SnackBar(
+                                        content: Text(
+                                          'Loaded ${file.name} for import.',
+                                        ),
+                                      ),
                                     );
                                   },
                             icon: const Icon(Icons.attach_file_outlined),
@@ -182,13 +188,17 @@ class _InventoryPageState extends State<InventoryPage> {
                           OutlinedButton.icon(
                             onPressed: () async {
                               await Clipboard.setData(
-                                const ClipboardData(text: _inventoryCsvTemplate),
+                                const ClipboardData(
+                                  text: _inventoryCsvTemplate,
+                                ),
                               );
                               if (!context.mounted) {
                                 return;
                               }
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('Inventory template copied.')),
+                                const SnackBar(
+                                  content: Text('Inventory template copied.'),
+                                ),
                               );
                             },
                             icon: const Icon(Icons.copy_all_outlined),
@@ -208,9 +218,14 @@ class _InventoryPageState extends State<InventoryPage> {
                       const SizedBox(height: 12),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
-                          color: scheme.primaryContainer.withValues(alpha: 0.55),
+                          color: scheme.primaryContainer.withValues(
+                            alpha: 0.55,
+                          ),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Text(
@@ -247,7 +262,9 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancel'),
                 ),
                 FilledButton.icon(
@@ -262,7 +279,8 @@ class _InventoryPageState extends State<InventoryPage> {
                           }
                           if (previewRows == 0) {
                             setDialogState(() {
-                              errorText = 'No inventory rows were found under the header.';
+                              errorText =
+                                  'No inventory rows were found under the header.';
                             });
                             return;
                           }
@@ -272,7 +290,9 @@ class _InventoryPageState extends State<InventoryPage> {
                             errorText = null;
                           });
 
-                          final result = await widget.store.importInventoryCsv(controller.text);
+                          final result = await widget.store.importInventoryCsv(
+                            controller.text,
+                          );
                           if (!dialogContext.mounted) {
                             return;
                           }
@@ -298,8 +318,8 @@ class _InventoryPageState extends State<InventoryPage> {
                     isSubmitting
                         ? 'Importing...'
                         : previewRows == 0
-                            ? 'Import'
-                            : 'Import $previewRows',
+                        ? 'Import'
+                        : 'Import $previewRows',
                   ),
                 ),
               ],

@@ -70,7 +70,10 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                   initialValue: audience,
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text('Everyone')),
-                    DropdownMenuItem(value: 'user', child: Text('Specific user')),
+                    DropdownMenuItem(
+                      value: 'user',
+                      child: Text('Specific user'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -233,7 +236,10 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                   initialValue: audience,
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text('Everyone')),
-                    DropdownMenuItem(value: 'user', child: Text('Specific user')),
+                    DropdownMenuItem(
+                      value: 'user',
+                      child: Text('Specific user'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -392,7 +398,8 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          result.message ?? (result.success ? 'Coupon deleted.' : 'Failed to delete coupon.'),
+          result.message ??
+              (result.success ? 'Coupon deleted.' : 'Failed to delete coupon.'),
         ),
       ),
     );
@@ -480,7 +487,10 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
         ],
       ),
     ];
-    final success = await exportCsv(csvFilename('coupons_export'), buildCsv(rows));
+    final success = await exportCsv(
+      csvFilename('coupons_export'),
+      buildCsv(rows),
+    );
     if (!mounted) {
       return;
     }
@@ -733,17 +743,22 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                               Switch(
                                 value: coupon.isActive,
                                 onChanged: (value) async {
-                                  await _runCouponAction(() => widget.store.updateCoupon(
-                                    id: coupon.id,
-                                    isActive: value,
-                                    type: coupon.type,
-                                    value: coupon.value,
-                                    audience: coupon.audience ?? 'all',
-                                    description: coupon.description ?? '',
-                                    startsAt: coupon.startsAt,
-                                    endsAt: coupon.endsAt,
-                                    userEmail: coupon.userEmail,
-                                  ), successMessage: value ? 'Coupon activated.' : 'Coupon deactivated.');
+                                  await _runCouponAction(
+                                    () => widget.store.updateCoupon(
+                                      id: coupon.id,
+                                      isActive: value,
+                                      type: coupon.type,
+                                      value: coupon.value,
+                                      audience: coupon.audience ?? 'all',
+                                      description: coupon.description ?? '',
+                                      startsAt: coupon.startsAt,
+                                      endsAt: coupon.endsAt,
+                                      userEmail: coupon.userEmail,
+                                    ),
+                                    successMessage: value
+                                        ? 'Coupon activated.'
+                                        : 'Coupon deactivated.',
+                                  );
                                 },
                               ),
                               IconButton(

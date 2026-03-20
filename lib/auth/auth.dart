@@ -276,110 +276,114 @@ class _AuthGateState extends State<AuthGate> {
         } else {
           child = Scaffold(
             body: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: EntranceMotion(
-                    delay: const Duration(milliseconds: 80),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ThemeModeMenu(
-                                themeMode: widget.themeMode,
-                                themeStyle: widget.themeStyle,
-                                onChanged: widget.onThemeModeChanged,
-                                onStyleChanged: widget.onThemeStyleChanged,
-                                onTriggerOrigin: widget.onThemeTriggerOrigin,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SegmentedButton<_RoleTab>(
-                              segments: [
-                                const ButtonSegment<_RoleTab>(
-                                  value: _RoleTab.client,
-                                  icon: Icon(Icons.person),
-                                  label: Text('Client'),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    child: EntranceMotion(
+                      delay: const Duration(milliseconds: 80),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: ThemeModeMenu(
+                                  themeMode: widget.themeMode,
+                                  themeStyle: widget.themeStyle,
+                                  onChanged: widget.onThemeModeChanged,
+                                  onStyleChanged: widget.onThemeStyleChanged,
+                                  onTriggerOrigin: widget.onThemeTriggerOrigin,
                                 ),
-                                if (_showAdminTab)
+                              ),
+                              const SizedBox(height: 8),
+                              SegmentedButton<_RoleTab>(
+                                segments: [
                                   const ButtonSegment<_RoleTab>(
-                                    value: _RoleTab.admin,
-                                    icon: Icon(Icons.admin_panel_settings),
-                                    label: Text('Admin'),
+                                    value: _RoleTab.client,
+                                    icon: Icon(Icons.person),
+                                    label: Text('Client'),
                                   ),
-                              ],
-                              selected: {_roleTab},
-                              onSelectionChanged: (selected) {
-                                setState(() {
-                                  _roleTab = selected.first;
-                                  _showRegister = false;
-                                  _showPublicShop = _roleTab == _RoleTab.client;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            if (widget.store.isLoading)
-                              const LinearProgressIndicator(),
-                            if (widget.store.isLoading)
-                              const SizedBox(height: 12),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 420),
-                              reverseDuration: const Duration(milliseconds: 360),
-                              switchInCurve: Curves.easeInOutCubic,
-                              switchOutCurve: Curves.easeInOutCubic,
-                              transitionBuilder: (child, animation) =>
-                                  _buildAuthTransition(child, animation),
-                              child: _roleTab == _RoleTab.admin
-                                  ? _AdminLoginForm(
-                                      key: const ValueKey('admin-login'),
-                                      onLogin: _handleAdminLogin,
-                                    )
-                                  : _showRegister
-                                  ? RegisterPage(
-                                      key: const ValueKey('register'),
-                                      onRegister: _handleRegister,
-                                      onSwitchToLogin: () {
-                                        setState(() {
-                                          _showRegister = false;
-                                        });
-                                      },
-                                    )
-                                  : LoginPage(
-                                      key: const ValueKey('login'),
-                                      onLogin: _handleClientLogin,
-                                      onSwitchToRegister: () {
-                                        setState(() {
-                                          _showRegister = true;
-                                        });
-                                      },
+                                  if (_showAdminTab)
+                                    const ButtonSegment<_RoleTab>(
+                                      value: _RoleTab.admin,
+                                      icon: Icon(Icons.admin_panel_settings),
+                                      label: Text('Admin'),
                                     ),
-                            ),
-                            if (_roleTab == _RoleTab.client)
-                              TextButton(
-                                onPressed: () {
+                                ],
+                                selected: {_roleTab},
+                                onSelectionChanged: (selected) {
                                   setState(() {
-                                    _showPublicShop = true;
+                                    _roleTab = selected.first;
+                                    _showRegister = false;
+                                    _showPublicShop =
+                                        _roleTab == _RoleTab.client;
                                   });
                                 },
-                                child: const Text(
-                                  'Browse products without login',
-                                ),
                               ),
-                            if (widget.store.errorMessage != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Text(
-                                  widget.store.errorMessage!,
-                                  style: const TextStyle(color: Colors.red),
+                              const SizedBox(height: 16),
+                              if (widget.store.isLoading)
+                                const LinearProgressIndicator(),
+                              if (widget.store.isLoading)
+                                const SizedBox(height: 12),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 420),
+                                reverseDuration: const Duration(
+                                  milliseconds: 360,
                                 ),
+                                switchInCurve: Curves.easeInOutCubic,
+                                switchOutCurve: Curves.easeInOutCubic,
+                                transitionBuilder: (child, animation) =>
+                                    _buildAuthTransition(child, animation),
+                                child: _roleTab == _RoleTab.admin
+                                    ? _AdminLoginForm(
+                                        key: const ValueKey('admin-login'),
+                                        onLogin: _handleAdminLogin,
+                                      )
+                                    : _showRegister
+                                    ? RegisterPage(
+                                        key: const ValueKey('register'),
+                                        onRegister: _handleRegister,
+                                        onSwitchToLogin: () {
+                                          setState(() {
+                                            _showRegister = false;
+                                          });
+                                        },
+                                      )
+                                    : LoginPage(
+                                        key: const ValueKey('login'),
+                                        onLogin: _handleClientLogin,
+                                        onSwitchToRegister: () {
+                                          setState(() {
+                                            _showRegister = true;
+                                          });
+                                        },
+                                      ),
                               ),
-                          ],
+                              if (_roleTab == _RoleTab.client)
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showPublicShop = true;
+                                    });
+                                  },
+                                  child: const Text(
+                                    'Browse products without login',
+                                  ),
+                                ),
+                              if (widget.store.errorMessage != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Text(
+                                    widget.store.errorMessage!,
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -387,13 +391,12 @@ class _AuthGateState extends State<AuthGate> {
                 ),
               ),
             ),
-          ),
           );
           childKey = _roleTab == _RoleTab.admin
               ? 'admin-auth'
               : _showRegister
-                  ? 'client-register'
-                  : 'client-login';
+              ? 'client-register'
+              : 'client-login';
         }
 
         return AnimatedSwitcher(
@@ -410,10 +413,7 @@ class _AuthGateState extends State<AuthGate> {
           ),
           transitionBuilder: (child, animation) =>
               _buildAuthTransition(child, animation),
-          child: KeyedSubtree(
-            key: ValueKey(childKey),
-            child: child,
-          ),
+          child: KeyedSubtree(key: ValueKey(childKey), child: child),
         );
       },
     );

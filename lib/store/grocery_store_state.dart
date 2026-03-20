@@ -39,8 +39,12 @@ class GroceryStoreState extends ChangeNotifier {
 
   static Future<GroceryStoreState> create({
     String baseUrl = 'http://localhost:4000',
+    String? fallbackBaseUrl,
   }) async {
-    final client = ApiClient(baseUrl: baseUrl);
+    final client = ApiClient(
+      baseUrl: baseUrl,
+      fallbackBaseUrl: fallbackBaseUrl,
+    );
     final store = GroceryStoreState._(client);
     await store._restoreSession();
     await store._validateRestoredSession();
@@ -758,14 +762,16 @@ class GroceryStoreState extends ChangeNotifier {
     }
 
     try {
-      final response = await _apiClient.postJson('/api/products/restock/import', {
-        'csv': csv,
-      });
+      final response = await _apiClient.postJson(
+        '/api/products/restock/import',
+        {'csv': csv},
+      );
       await refreshAll();
       final importedCount = (response['importedCount'] as num?)?.toInt() ?? 0;
       return AuthResult(
         success: true,
-        message: 'Imported $importedCount inventory row${importedCount == 1 ? '' : 's'}.',
+        message:
+            'Imported $importedCount inventory row${importedCount == 1 ? '' : 's'}.',
       );
     } on ApiException catch (err) {
       return AuthResult(success: false, message: err.message);
@@ -988,11 +994,12 @@ class GroceryStoreState extends ChangeNotifier {
     String? trackingCarrier,
     String? trackingStatus,
   }) async {
-    final response = await _apiClient.patchJson('/api/orders/$orderId/tracking', {
-      'trackingNumber': trackingNumber,
-      'trackingCarrier': trackingCarrier,
-      'trackingStatus': trackingStatus,
-    });
+    final response = await _apiClient
+        .patchJson('/api/orders/$orderId/tracking', {
+          'trackingNumber': trackingNumber,
+          'trackingCarrier': trackingCarrier,
+          'trackingStatus': trackingStatus,
+        });
     _mergeOrderFromApi(response);
   }
 

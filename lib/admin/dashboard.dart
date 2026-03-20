@@ -391,16 +391,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       barrierLabel: 'Close',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 420),
-      pageBuilder: (context, animation, secondaryAnimation) => Dialog.fullscreen(
-        child: EntranceMotion(
-          duration: const Duration(milliseconds: 520),
-          beginOffset: const Offset(0.06, 0),
-          child: Scaffold(
-            appBar: AppBar(title: Text(title)),
-            body: Padding(padding: const EdgeInsets.all(16), child: child),
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          Dialog.fullscreen(
+            child: EntranceMotion(
+              duration: const Duration(milliseconds: 520),
+              beginOffset: const Offset(0.06, 0),
+              child: Scaffold(
+                appBar: AppBar(title: Text(title)),
+                body: Padding(padding: const EdgeInsets.all(16), child: child),
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -661,7 +662,8 @@ class _RevenueChartState extends State<RevenueChart>
                               );
                               final index = data.length <= 1
                                   ? 0
-                                  : ((clampedX / chartWidth) * (data.length - 1))
+                                  : ((clampedX / chartWidth) *
+                                            (data.length - 1))
                                         .round()
                                         .clamp(0, data.length - 1);
                               if (_hoveredIndex != index) {
@@ -670,21 +672,26 @@ class _RevenueChartState extends State<RevenueChart>
                             }
 
                             final hoveredPoint =
-                                _hoveredIndex != null && _hoveredIndex! < data.length
+                                _hoveredIndex != null &&
+                                    _hoveredIndex! < data.length
                                 ? data[_hoveredIndex!]
                                 : null;
                             final hoveredX =
                                 _hoveredIndex == null || data.length <= 1
                                 ? 0.0
-                                : (chartWidth / (data.length - 1)) * _hoveredIndex!;
+                                : (chartWidth / (data.length - 1)) *
+                                      _hoveredIndex!;
                             final hoveredY = hoveredPoint == null
                                 ? 0.0
                                 : chartHeight -
-                                      (hoveredPoint.value / safeMax) * chartHeight;
+                                      (hoveredPoint.value / safeMax) *
+                                          chartHeight;
 
                             return MouseRegion(
-                              onExit: (_) => setState(() => _hoveredIndex = null),
-                              onHover: (event) => updateHover(event.localPosition),
+                              onExit: (_) =>
+                                  setState(() => _hoveredIndex = null),
+                              onHover: (event) =>
+                                  updateHover(event.localPosition),
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTapDown: (details) =>
@@ -694,9 +701,13 @@ class _RevenueChartState extends State<RevenueChart>
                                   children: [
                                     CustomPaint(
                                       painter: _LineChartPainter(
-                                        points: data.map((e) => e.value).toList(),
+                                        points: data
+                                            .map((e) => e.value)
+                                            .toList(),
                                         maxValue: safeMax,
-                                        color: Theme.of(context).colorScheme.primary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                         highlightedIndex: _hoveredIndex,
                                         progress: _progress.value,
                                       ),
@@ -727,15 +738,14 @@ class _RevenueChartState extends State<RevenueChart>
                                               borderRadius:
                                                   BorderRadius.circular(14),
                                               border: Border.all(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .outlineVariant,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.outlineVariant,
                                               ),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: Colors.black.withValues(
-                                                    alpha: 0.12,
-                                                  ),
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.12),
                                                   blurRadius: 16,
                                                   offset: const Offset(0, 6),
                                                 ),
@@ -747,13 +757,15 @@ class _RevenueChartState extends State<RevenueChart>
                                               children: [
                                                 Text(
                                                   hoveredPoint.label,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall,
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall,
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  _moneyText(hoveredPoint.value),
+                                                  _moneyText(
+                                                    hoveredPoint.value,
+                                                  ),
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .titleSmall

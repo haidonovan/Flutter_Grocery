@@ -419,7 +419,9 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: scheme.primaryContainer.withValues(alpha: 0.55),
+                            color: scheme.primaryContainer.withValues(
+                              alpha: 0.55,
+                            ),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
@@ -513,8 +515,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                       isSubmitting
                           ? 'Importing...'
                           : previewRows == 0
-                              ? 'Import'
-                              : 'Import $previewRows',
+                          ? 'Import'
+                          : 'Import $previewRows',
                     ),
                   ),
                 ],
@@ -578,7 +580,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
-        if (widget.store.isLoadingProducts && widget.store.allProducts.isEmpty) {
+        if (widget.store.isLoadingProducts &&
+            widget.store.allProducts.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -926,13 +929,17 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
-                                      if (_togglingProductIds.contains(product.id))
+                                      if (_togglingProductIds.contains(
+                                        product.id,
+                                      ))
                                         const SizedBox(
                                           width: 36,
                                           height: 36,
                                           child: Padding(
                                             padding: EdgeInsets.all(8),
-                                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                            ),
                                           ),
                                         )
                                       else

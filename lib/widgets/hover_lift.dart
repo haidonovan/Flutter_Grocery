@@ -54,9 +54,7 @@ class _HoverLiftState extends State<HoverLift> {
           boxShadow: [
             if (widget.hoverElevation > 0 || widget.normalElevation > 0)
               BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: _hovered ? 0.14 : 0.06,
-                ),
+                color: Colors.black.withValues(alpha: _hovered ? 0.14 : 0.06),
                 blurRadius: _hovered
                     ? widget.hoverElevation
                     : widget.normalElevation,

@@ -26,6 +26,12 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const String _apiFallbackBaseUrlEnv = String.fromEnvironment(
+    'API_FALLBACK_URL',
+    defaultValue: '',
+  );
+  static const String _onlineApiBaseUrl =
+      'https://grocerystore-production-eea3.up.railway.app';
   static const String _themePrefKey = 'theme_mode';
   static const String _themeStylePrefKey = 'theme_style';
 
@@ -44,13 +50,17 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _storeFuture = GroceryStoreState.create(baseUrl: _resolveApiBaseUrl());
-    _themeBlastController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )
-      ..addListener(_handleThemeBlastTick)
-      ..addStatusListener(_handleThemeBlastStatus);
+    _storeFuture = GroceryStoreState.create(
+      baseUrl: _resolveApiBaseUrl(),
+      fallbackBaseUrl: _resolveApiFallbackBaseUrl(),
+    );
+    _themeBlastController =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 900),
+          )
+          ..addListener(_handleThemeBlastTick)
+          ..addStatusListener(_handleThemeBlastStatus);
     _loadThemeMode();
   }
 
@@ -63,9 +73,26 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       if (host == 'localhost' || host == '127.0.0.1') {
         return 'http://localhost:4000';
       }
-      return 'https://grocerystore-production-eea3.up.railway.app';
+      return _onlineApiBaseUrl;
     }
     return 'http://localhost:4000';
+  }
+
+  String? _resolveApiFallbackBaseUrl() {
+    if (_apiFallbackBaseUrlEnv.isNotEmpty) {
+      return _apiFallbackBaseUrlEnv;
+    }
+    if (_apiBaseUrlEnv.isNotEmpty) {
+      return null;
+    }
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host == 'localhost' || host == '127.0.0.1') {
+        return _onlineApiBaseUrl;
+      }
+      return null;
+    }
+    return _onlineApiBaseUrl;
   }
 
   Future<void> _loadThemeMode() async {
@@ -77,7 +104,6 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       _themeStyle = _decodeThemeStyle(rawStyle);
     });
   }
-
 
   void _registerThemeTriggerOrigin(Offset origin) {
     _queuedThemeBlastOrigin = origin;
@@ -167,7 +193,10 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
     await _runThemeBlast(nextStyle: style);
   }
 
-  Future<void> _runThemeBlast({ThemeMode? nextMode, AppThemeStyle? nextStyle}) async {
+  Future<void> _runThemeBlast({
+    ThemeMode? nextMode,
+    AppThemeStyle? nextStyle,
+  }) async {
     final targetMode = nextMode ?? _themeMode;
     final targetStyle = nextStyle ?? _themeStyle;
     if (targetMode == _themeMode && targetStyle == _themeStyle) {
@@ -240,7 +269,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
             ? const Color(0xFF21121A)
             : const Color(0xFFFFF7FB);
       case AppThemeStyle.classic:
-        return brightness == Brightness.dark ? colorScheme.surface : Colors.white;
+        return brightness == Brightness.dark
+            ? colorScheme.surface
+            : Colors.white;
     }
   }
 
@@ -259,7 +290,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
             ? const Color(0xFF26151F)
             : const Color(0xFFFFF1F7);
       case AppThemeStyle.classic:
-        return brightness == Brightness.dark ? colorScheme.surface : Colors.white;
+        return brightness == Brightness.dark
+            ? colorScheme.surface
+            : Colors.white;
     }
   }
 
@@ -362,9 +395,8 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: buttonBackground,
-          foregroundColor: ThemeData.estimateBrightnessForColor(
-                    buttonBackground,
-                  ) ==
+          foregroundColor:
+              ThemeData.estimateBrightnessForColor(buttonBackground) ==
                   Brightness.dark
               ? Colors.white
               : Colors.black,

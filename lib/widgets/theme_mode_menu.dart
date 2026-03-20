@@ -88,10 +88,7 @@ class ThemeModeMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem<String>(
-          enabled: false,
-          child: Text('Mode'),
-        ),
+        const PopupMenuItem<String>(enabled: false, child: Text('Mode')),
         CheckedPopupMenuItem<String>(
           value: 'mode_system',
           checked: themeMode == ThemeMode.system,
@@ -108,10 +105,7 @@ class ThemeModeMenu extends StatelessWidget {
           child: const Text('Dark'),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem<String>(
-          enabled: false,
-          child: Text('Style'),
-        ),
+        const PopupMenuItem<String>(enabled: false, child: Text('Style')),
         CheckedPopupMenuItem<String>(
           value: 'style_classic',
           checked: themeStyle == AppThemeStyle.classic,

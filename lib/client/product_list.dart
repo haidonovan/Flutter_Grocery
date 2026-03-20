@@ -436,7 +436,9 @@ class _ProductCard extends StatelessWidget {
         onTap: onOpen,
         child: Card(
           elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,7 +454,9 @@ class _ProductCard extends StatelessWidget {
                       errorBuilder: (context, error, stackTrace) =>
                           const ColoredBox(
                             color: Colors.black12,
-                            child: Center(child: Icon(Icons.image_not_supported)),
+                            child: Center(
+                              child: Icon(Icons.image_not_supported),
+                            ),
                           ),
                     ),
                     Container(
@@ -558,7 +562,9 @@ class _ProductCard extends StatelessWidget {
                                 ? '${product.stock} in stock'
                                 : 'Out of stock',
                             style: TextStyle(
-                              color: product.stock <= 5 ? Colors.red : Colors.green,
+                              color: product.stock <= 5
+                                  ? Colors.red
+                                  : Colors.green,
                               fontSize: 12,
                             ),
                           ),
@@ -576,7 +582,9 @@ class _ProductCard extends StatelessWidget {
                           enabled: canAdd,
                           child: FilledButton(
                             onPressed: canAdd ? onAdd : null,
-                            child: Text(canAdd ? 'Add to cart' : 'Out of stock'),
+                            child: Text(
+                              canAdd ? 'Add to cart' : 'Out of stock',
+                            ),
                           ),
                         ),
                       ),
@@ -731,11 +739,16 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
                   offset: Offset(translateX, 0),
                   child: Row(
                     children: [
-                      for (var index = 0; index < repeatedProducts.length; index++) ...[
+                      for (
+                        var index = 0;
+                        index < repeatedProducts.length;
+                        index++
+                      ) ...[
                         SizedBox(
                           width: cardWidth,
                           child: InkWell(
-                            onTap: () => widget.onOpen(repeatedProducts[index].id),
+                            onTap: () =>
+                                widget.onOpen(repeatedProducts[index].id),
                             borderRadius: BorderRadius.circular(24),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(24),
@@ -745,13 +758,16 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
                                   Image.network(
                                     repeatedProducts[index].imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const ColoredBox(
-                                          color: Colors.black12,
-                                          child: Center(
-                                            child: Icon(Icons.image_not_supported),
-                                          ),
-                                        ),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const ColoredBox(
+                                              color: Colors.black12,
+                                              child: Center(
+                                                child: Icon(
+                                                  Icons.image_not_supported,
+                                                ),
+                                              ),
+                                            ),
                                   ),
                                   Container(
                                     decoration: BoxDecoration(
@@ -770,7 +786,8 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
                                     right: 22,
                                     bottom: 20,
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           repeatedProducts[index].category,
@@ -807,10 +824,16 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha: 0.16),
-                                            borderRadius: BorderRadius.circular(12),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.16,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                             border: Border.all(
-                                              color: Colors.white.withValues(alpha: 0.12),
+                                              color: Colors.white.withValues(
+                                                alpha: 0.12,
+                                              ),
                                             ),
                                           ),
                                           child: Text(
@@ -843,4 +866,3 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
     );
   }
 }
-

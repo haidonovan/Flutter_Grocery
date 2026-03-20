@@ -287,7 +287,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                 children: [
                                   Text(
                                     'Coupon wallet',
-                                    style: Theme.of(context).textTheme.titleLarge
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
                                         ?.copyWith(
                                           color: walletForeground,
                                           fontWeight: FontWeight.w700,
@@ -298,9 +300,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                     widget.activeCoupons.isNotEmpty
                                         ? 'Tap to view, copy, and use your coupons'
                                         : 'No coupons yet. New offers will appear here.',
-                                    style: Theme.of(context).textTheme.bodyMedium
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
                                         ?.copyWith(
-                                          color: walletForeground.withValues(alpha: 0.82),
+                                          color: walletForeground.withValues(
+                                            alpha: 0.82,
+                                          ),
                                         ),
                                   ),
                                 ],
@@ -318,7 +324,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: widget.activeCoupons.take(3).map((coupon) {
+                            children: widget.activeCoupons.take(3).map((
+                              coupon,
+                            ) {
                               final valueLabel = coupon.type == 'percent'
                                   ? '${coupon.value.toStringAsFixed(0)}% OFF'
                                   : '\$${coupon.value.toStringAsFixed(2)} OFF';
@@ -328,10 +336,14 @@ class _ProfilePageState extends State<ProfilePage> {
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: walletForeground.withValues(alpha: 0.1),
+                                  color: walletForeground.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(999),
                                   border: Border.all(
-                                    color: walletForeground.withValues(alpha: 0.16),
+                                    color: walletForeground.withValues(
+                                      alpha: 0.16,
+                                    ),
                                   ),
                                 ),
                                 child: Text(
@@ -357,9 +369,12 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             child: Text(
                               'When the store publishes a promo or assigns a coupon to your account, you will see it here.',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: walletForeground.withValues(alpha: 0.86),
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: walletForeground.withValues(
+                                      alpha: 0.86,
+                                    ),
+                                  ),
                             ),
                           ),
                         const SizedBox(height: 18),
@@ -369,19 +384,23 @@ class _ProfilePageState extends State<ProfilePage> {
                               widget.activeCoupons.isNotEmpty
                                   ? '${widget.activeCoupons.length} available'
                                   : 'Waiting for offers',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: walletForeground.withValues(alpha: 0.82),
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: walletForeground.withValues(
+                                      alpha: 0.82,
+                                    ),
+                                  ),
                             ),
                             const Spacer(),
                             Text(
                               widget.activeCoupons.isNotEmpty
                                   ? 'Open wallet'
                                   : 'Check offers',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: walletForeground,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: walletForeground,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
                           ],
                         ),
@@ -426,7 +445,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    for (var index = 0; index < widget.supportTickets.length; index++)
+                    for (
+                      var index = 0;
+                      index < widget.supportTickets.length;
+                      index++
+                    )
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: EntranceMotion(
@@ -470,7 +493,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     decoration: InputDecoration(
                       labelText: 'Subject',
                       filled: true,
-                      fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                      fillColor: scheme.surfaceContainerHighest.withValues(
+                        alpha: 0.55,
+                      ),
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -483,7 +508,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       helperText:
                           'Only signed-in users can create tickets. Replies will appear above in your ticket history.',
                       filled: true,
-                      fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                      fillColor: scheme.surfaceContainerHighest.withValues(
+                        alpha: 0.55,
+                      ),
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -538,9 +565,7 @@ class _SupportTicketCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: isDark ? 0.12 : 0.78),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -604,12 +629,18 @@ class _SupportTicketCard extends StatelessWidget {
           ...ticket.messages.map((message) {
             final isAdminMessage = message.userRole == 'admin';
             final bubbleColor = isAdminMessage
-                ? scheme.secondaryContainer.withValues(alpha: isDark ? 0.28 : 0.72)
-                : scheme.primaryContainer.withValues(alpha: isDark ? 0.22 : 0.55);
+                ? scheme.secondaryContainer.withValues(
+                    alpha: isDark ? 0.28 : 0.72,
+                  )
+                : scheme.primaryContainer.withValues(
+                    alpha: isDark ? 0.22 : 0.55,
+                  );
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Align(
-                alignment: isAdminMessage ? Alignment.centerLeft : Alignment.centerRight,
+                alignment: isAdminMessage
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -652,7 +683,9 @@ class _SupportTicketCard extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: 'Reply to this ticket',
                 filled: true,
-                fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                fillColor: scheme.surfaceContainerHighest.withValues(
+                  alpha: 0.55,
+                ),
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -756,7 +789,8 @@ class _CouponWalletSheet extends StatelessWidget {
                     controller: scrollController,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: coupons.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
                     itemBuilder: (context, index) {
                       final coupon = coupons[index];
                       return EntranceMotion(
@@ -779,9 +813,13 @@ class _CouponWalletSheet extends StatelessWidget {
                                       if (!context.mounted) {
                                         return;
                                       }
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
-                                          content: Text('Coupon ${coupon.code} copied.'),
+                                          content: Text(
+                                            'Coupon ${coupon.code} copied.',
+                                          ),
                                         ),
                                       );
                                     },
@@ -808,10 +846,14 @@ class _CouponWalletSheet extends StatelessWidget {
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                          color: scheme.surfaceContainerHighest.withValues(
+                            alpha: 0.55,
+                          ),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: scheme.outlineVariant.withValues(alpha: 0.45),
+                            color: scheme.outlineVariant.withValues(
+                              alpha: 0.45,
+                            ),
                           ),
                         ),
                         padding: const EdgeInsets.all(20),

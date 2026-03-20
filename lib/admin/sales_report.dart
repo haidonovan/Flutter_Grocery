@@ -32,8 +32,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
       barrierLabel: 'Close',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 420),
-      pageBuilder:
-          (context, animation, secondaryAnimation) => Dialog.fullscreen(
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          Dialog.fullscreen(
             child: EntranceMotion(
               duration: const Duration(milliseconds: 520),
               beginOffset: const Offset(0.06, 0),
@@ -146,7 +146,10 @@ class _SalesReportPageState extends State<SalesReportPage> {
         (entry) => ['Top Product', entry.key, entry.value.toString(), ''],
       ),
     ];
-    final success = await exportCsv(csvFilename('sales_export'), buildCsv(rows));
+    final success = await exportCsv(
+      csvFilename('sales_export'),
+      buildCsv(rows),
+    );
     if (!mounted) {
       return;
     }
@@ -252,15 +255,11 @@ class _SalesReportPageState extends State<SalesReportPage> {
             const SizedBox(height: 12),
             _SalesChartCard(
               title: 'Revenue over time',
-              onExpand:
-                  () => _openFullScreen(
-                    context,
-                    'Revenue over time',
-                    RevenueChart(
-                      orders: filteredOrders,
-                      range: range,
-                    ),
-                  ),
+              onExpand: () => _openFullScreen(
+                context,
+                'Revenue over time',
+                RevenueChart(orders: filteredOrders, range: range),
+              ),
               child: SizedBox(
                 height: 260,
                 child: RevenueChart(orders: filteredOrders, range: range),

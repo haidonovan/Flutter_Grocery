@@ -60,7 +60,6 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
         '${value.minute.toString().padLeft(2, '0')}';
   }
 
-
   Color _statusColor(BuildContext context, OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
@@ -316,7 +315,10 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
         ],
       ),
     ];
-    final success = await exportCsv(csvFilename('orders_export'), buildCsv(rows));
+    final success = await exportCsv(
+      csvFilename('orders_export'),
+      buildCsv(rows),
+    );
     if (!mounted) {
       return;
     }
@@ -404,8 +406,10 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                       itemCount: filteredOrders.length,
                       itemBuilder: (context, index) {
                         final order = filteredOrders[index];
-                        final isStatusUpdating = _statusUpdatingOrderIds.contains(order.id);
-                        final isTrackingUpdating = _trackingUpdatingOrderIds.contains(order.id);
+                        final isStatusUpdating = _statusUpdatingOrderIds
+                            .contains(order.id);
+                        final isTrackingUpdating = _trackingUpdatingOrderIds
+                            .contains(order.id);
                         final statusColor = _statusColor(context, order.status);
                         return Card(
                           child: ExpansionTile(
@@ -421,64 +425,94 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                                   IgnorePointer(
                                     ignoring: isStatusUpdating,
                                     child: DropdownButtonFormField<OrderStatus>(
-                                      key: ValueKey('${order.id}-${order.status.name}'),
-                                      initialValue: order.status,
-                                      dropdownColor: Theme.of(context).cardColor,
-                                      iconEnabledColor: statusColor,
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: statusColor,
-                                        fontWeight: FontWeight.w700,
+                                      key: ValueKey(
+                                        '${order.id}-${order.status.name}',
                                       ),
+                                      initialValue: order.status,
+                                      dropdownColor: Theme.of(
+                                        context,
+                                      ).cardColor,
+                                      iconEnabledColor: statusColor,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: statusColor,
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                       decoration: InputDecoration(
                                         isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
                                         filled: true,
-                                        fillColor: _statusBackground(context, order.status),
+                                        fillColor: _statusBackground(
+                                          context,
+                                          order.status,
+                                        ),
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           borderSide: BorderSide(
-                                            color: _statusBorder(context, order.status),
+                                            color: _statusBorder(
+                                              context,
+                                              order.status,
+                                            ),
                                           ),
                                         ),
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           borderSide: BorderSide(
-                                            color: _statusBorder(context, order.status),
+                                            color: _statusBorder(
+                                              context,
+                                              order.status,
+                                            ),
                                           ),
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           borderSide: BorderSide(
                                             color: statusColor,
                                             width: 1.2,
                                           ),
                                         ),
                                       ),
-                                      selectedItemBuilder: (context) => OrderStatus.values
-                                          .map(
-                                            (status) => Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: Text(
-                                                status.name[0].toUpperCase() +
-                                                    status.name.substring(1),
-                                                overflow: TextOverflow.ellipsis,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.copyWith(
-                                                      color: _statusColor(
-                                                        context,
-                                                        status,
-                                                      ),
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
-                                              ),
-                                            ),
-                                          )
-                                          .toList(growable: false),
+                                      selectedItemBuilder: (context) =>
+                                          OrderStatus.values
+                                              .map(
+                                                (status) => Align(
+                                                  alignment:
+                                                      Alignment.centerLeft,
+                                                  child: Text(
+                                                    status.name[0]
+                                                            .toUpperCase() +
+                                                        status.name.substring(
+                                                          1,
+                                                        ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          color: _statusColor(
+                                                            context,
+                                                            status,
+                                                          ),
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                ),
+                                              )
+                                              .toList(growable: false),
                                       items: _statusItems(context),
                                       onChanged: (next) async {
                                         if (next != null) {
@@ -495,9 +529,10 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                                         height: 18,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            statusColor,
-                                          ),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                statusColor,
+                                              ),
                                         ),
                                       ),
                                     ),
@@ -562,16 +597,18 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                                 child: OutlinedButton.icon(
                                   onPressed: isTrackingUpdating
                                       ? null
-                                      : () => _showTrackingDialog(context, order),
+                                      : () =>
+                                            _showTrackingDialog(context, order),
                                   icon: isTrackingUpdating
                                       ? SizedBox(
                                           width: 16,
                                           height: 16,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(
-                                              statusColor,
-                                            ),
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  statusColor,
+                                                ),
                                           ),
                                         )
                                       : const Icon(
@@ -601,7 +638,9 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                                             .colorScheme
                                             .primary
                                             .withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                       ),
                                       child: Text(
                                         'Tracking sync in progress',

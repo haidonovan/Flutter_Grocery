@@ -74,7 +74,6 @@ class _ClientHomeState extends State<ClientHome> {
     _NavItem('Profile', Icons.person),
   ];
 
-
   void _selectTab(int index) {
     setState(() {
       _currentTabIndex = index;
@@ -192,10 +191,7 @@ class _ClientHomeState extends State<ClientHome> {
           curve: Curves.easeInOutCubic,
           reverseCurve: Curves.easeInOutCubic,
         );
-        return FadeTransition(
-          opacity: curved,
-          child: child,
-        );
+        return FadeTransition(opacity: curved, child: child);
       },
     );
 
@@ -313,7 +309,10 @@ class _ClientHomeState extends State<ClientHome> {
   Future<void> _showInvoiceDialog(OrderRecord order) async {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final subtotal = order.lines.fold<double>(0, (sum, line) => sum + line.subtotal);
+    final subtotal = order.lines.fold<double>(
+      0,
+      (sum, line) => sum + line.subtotal,
+    );
 
     await showGeneralDialog<void>(
       context: context,
@@ -359,7 +358,9 @@ class _ClientHomeState extends State<ClientHome> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: scheme.primaryContainer.withValues(alpha: 0.7),
+                                    color: scheme.primaryContainer.withValues(
+                                      alpha: 0.7,
+                                    ),
                                     borderRadius: BorderRadius.circular(18),
                                   ),
                                   child: Icon(
@@ -370,7 +371,8 @@ class _ClientHomeState extends State<ClientHome> {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Order placed',
@@ -379,9 +381,10 @@ class _ClientHomeState extends State<ClientHome> {
                                       const SizedBox(height: 4),
                                       Text(
                                         'Invoice ${order.id}',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: scheme.onSurfaceVariant,
-                                        ),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color: scheme.onSurfaceVariant,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -428,7 +431,8 @@ class _ClientHomeState extends State<ClientHome> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Column(
@@ -465,28 +469,40 @@ class _ClientHomeState extends State<ClientHome> {
                                   final line = entry.value;
                                   return EntranceMotion(
                                     active: true,
-                                    delay: Duration(milliseconds: 220 + (index * 35)),
+                                    delay: Duration(
+                                      milliseconds: 220 + (index * 35),
+                                    ),
                                     duration: const Duration(milliseconds: 420),
                                     beginOffset: const Offset(0, -0.018),
                                     child: Padding(
-                                      padding: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 10,
+                                      ),
                                       child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   line.productName,
-                                                  style: theme.textTheme.titleSmall,
+                                                  style: theme
+                                                      .textTheme
+                                                      .titleSmall,
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   'Qty ${line.quantity} | ${line.discountPercent > 0 ? '${line.discountPercent.toStringAsFixed(0)}% off' : 'Regular price'}',
-                                                  style: theme.textTheme.bodySmall?.copyWith(
-                                                    color: scheme.onSurfaceVariant,
-                                                  ),
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: scheme
+                                                            .onSurfaceVariant,
+                                                      ),
                                                 ),
                                               ],
                                             ),
@@ -507,7 +523,9 @@ class _ClientHomeState extends State<ClientHome> {
                           const SizedBox(height: 8),
                           EntranceMotion(
                             active: true,
-                            delay: Duration(milliseconds: 240 + (order.lines.length * 35)),
+                            delay: Duration(
+                              milliseconds: 240 + (order.lines.length * 35),
+                            ),
                             duration: const Duration(milliseconds: 420),
                             beginOffset: const Offset(0, -0.016),
                             child: Column(
@@ -518,10 +536,12 @@ class _ClientHomeState extends State<ClientHome> {
                                   label: 'Subtotal',
                                   value: '\$${subtotal.toStringAsFixed(2)}',
                                 ),
-                                if (order.couponCode != null && order.couponDiscount != null)
+                                if (order.couponCode != null &&
+                                    order.couponDiscount != null)
                                   _InvoiceAmountRow(
                                     label: 'Coupon ${order.couponCode}',
-                                    value: '-\$${order.couponDiscount!.toStringAsFixed(2)}',
+                                    value:
+                                        '-\$${order.couponDiscount!.toStringAsFixed(2)}',
                                     highlight: true,
                                   ),
                                 const SizedBox(height: 6),
@@ -534,8 +554,11 @@ class _ClientHomeState extends State<ClientHome> {
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: FilledButton.icon(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    icon: const Icon(Icons.check_circle_outline),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    icon: const Icon(
+                                      Icons.check_circle_outline,
+                                    ),
                                     label: const Text('View orders'),
                                   ),
                                 ),
@@ -818,7 +841,6 @@ class _NavItem {
   final IconData icon;
 }
 
-
 class _PurchaseSignatureOverlay extends StatelessWidget {
   const _PurchaseSignatureOverlay();
 
@@ -838,7 +860,9 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
           final reveal = Curves.easeOutQuart.transform(value.clamp(0.0, 1.0));
           final settle = Curves.easeInOutCubic.transform(value.clamp(0.0, 1.0));
           final blur = 3 + (7 * settle);
-          final penTravel = Curves.easeOutExpo.transform((value * 1.04).clamp(0.0, 1.0));
+          final penTravel = Curves.easeOutExpo.transform(
+            (value * 1.04).clamp(0.0, 1.0),
+          );
 
           return Stack(
             fit: StackFit.expand,
@@ -862,7 +886,9 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                         final leftInset = (fontSize * 0.14).clamp(12.0, 28.0);
                         final rightInset = (fontSize * 0.26).clamp(24.0, 46.0);
                         final drawingWidth = width - leftInset - rightInset;
-                        final baselineWave = math.sin(penTravel * math.pi * 1.95) * (fontSize * 0.045);
+                        final baselineWave =
+                            math.sin(penTravel * math.pi * 1.95) *
+                            (fontSize * 0.045);
                         final penX = leftInset + (drawingWidth * penTravel);
                         final penY = -(fontSize * 0.06) + baselineWave;
 
@@ -889,7 +915,9 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                           style: GoogleFonts.greatVibes(
                                             fontSize: fontSize,
                                             fontWeight: FontWeight.w400,
-                                            color: signatureColor.withValues(alpha: 0.16),
+                                            color: signatureColor.withValues(
+                                              alpha: 0.16,
+                                            ),
                                             letterSpacing: 0.2,
                                           ),
                                         ),
@@ -905,7 +933,8 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                         child: ShaderMask(
                                           blendMode: BlendMode.srcIn,
                                           shaderCallback: (bounds) {
-                                            final visibleWidth = bounds.width * reveal;
+                                            final visibleWidth =
+                                                bounds.width * reveal;
                                             return LinearGradient(
                                               begin: Alignment.centerLeft,
                                               end: Alignment.centerRight,
@@ -913,18 +942,20 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                                 signatureColor,
                                                 signatureGlow,
                                                 signatureColor,
-                                                signatureColor.withValues(alpha: 0.0),
+                                                signatureColor.withValues(
+                                                  alpha: 0.0,
+                                                ),
                                               ],
                                               stops: [
                                                 0,
                                                 (visibleWidth / bounds.width)
                                                         .clamp(0.0, 1.0) *
                                                     0.62,
-                                                (visibleWidth / bounds.width).clamp(0.0, 1.0),
-                                                ((visibleWidth + 18) / bounds.width).clamp(
-                                                  0.0,
-                                                  1.0,
-                                                ),
+                                                (visibleWidth / bounds.width)
+                                                    .clamp(0.0, 1.0),
+                                                ((visibleWidth + 18) /
+                                                        bounds.width)
+                                                    .clamp(0.0, 1.0),
                                               ],
                                             ).createShader(bounds);
                                           },
@@ -942,9 +973,15 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                                   letterSpacing: 0.2,
                                                   shadows: [
                                                     Shadow(
-                                                      color: signatureGlow.withValues(alpha: 0.48),
+                                                      color: signatureGlow
+                                                          .withValues(
+                                                            alpha: 0.48,
+                                                          ),
                                                       blurRadius: 20,
-                                                      offset: const Offset(0, 0),
+                                                      offset: const Offset(
+                                                        0,
+                                                        0,
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
@@ -958,7 +995,10 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                       left: penX,
                                       top: (fontSize * 0.58) + penY,
                                       child: Opacity(
-                                        opacity: (reveal - 0.06).clamp(0.0, 1.0),
+                                        opacity: (reveal - 0.06).clamp(
+                                          0.0,
+                                          1.0,
+                                        ),
                                         child: Container(
                                           width: 14,
                                           height: 14,
@@ -967,12 +1007,15 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                             color: signatureGlow,
                                             boxShadow: [
                                               BoxShadow(
-                                                color: signatureGlow.withValues(alpha: 0.9),
+                                                color: signatureGlow.withValues(
+                                                  alpha: 0.9,
+                                                ),
                                                 blurRadius: 22,
                                                 spreadRadius: 2,
                                               ),
                                               BoxShadow(
-                                                color: signatureColor.withValues(alpha: 0.52),
+                                                color: signatureColor
+                                                    .withValues(alpha: 0.52),
                                                 blurRadius: 34,
                                                 spreadRadius: 8,
                                               ),
@@ -999,7 +1042,9 @@ class _PurchaseSignatureOverlay extends StatelessWidget {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: signatureGlow.withValues(alpha: 0.28),
+                                      color: signatureGlow.withValues(
+                                        alpha: 0.28,
+                                      ),
                                       blurRadius: 18,
                                     ),
                                   ],
@@ -1052,9 +1097,9 @@ class _InvoiceStat extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 4),
           Text(value, style: Theme.of(context).textTheme.titleSmall),
@@ -1083,8 +1128,8 @@ class _InvoiceAmountRow extends StatelessWidget {
     final color = highlight
         ? theme.colorScheme.primary
         : prominent
-            ? theme.colorScheme.onSurface
-            : theme.colorScheme.onSurfaceVariant;
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onSurfaceVariant;
     final textStyle = prominent
         ? theme.textTheme.titleLarge
         : theme.textTheme.bodyLarge;
@@ -1094,10 +1139,7 @@ class _InvoiceAmountRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: textStyle?.copyWith(color: color),
-            ),
+            child: Text(label, style: textStyle?.copyWith(color: color)),
           ),
           Text(
             value,
