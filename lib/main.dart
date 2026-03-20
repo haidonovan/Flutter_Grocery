@@ -75,10 +75,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       }
       return _onlineApiBaseUrl;
     }
-    if (kReleaseMode) {
-      return _onlineApiBaseUrl;
-    }
-    return 'http://localhost:4000';
+    return _onlineApiBaseUrl;
   }
 
   String? _resolveApiFallbackBaseUrl() {
@@ -95,10 +92,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       }
       return null;
     }
-    if (kReleaseMode) {
-      return null;
-    }
-    return _onlineApiBaseUrl;
+    return null;
   }
 
   Future<void> _loadThemeMode() async {

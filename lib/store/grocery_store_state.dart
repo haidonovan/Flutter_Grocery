@@ -38,7 +38,7 @@ class GroceryStoreState extends ChangeNotifier {
   static const String _userRoleKey = 'api_user_role';
 
   static Future<GroceryStoreState> create({
-    String baseUrl = 'http://localhost:4000',
+    String baseUrl = 'https://grocerystore-production-eea3.up.railway.app',
     String? fallbackBaseUrl,
   }) async {
     final client = ApiClient(
