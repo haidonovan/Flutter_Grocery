@@ -73,6 +73,8 @@ class GroceryStoreState extends ChangeNotifier {
   bool _isLoadingProducts = false;
   bool _isLoadingOrders = false;
   bool _isLoadingCategories = false;
+  bool _hasReceivedProductsResponse = false;
+  DateTime? _lastProductsLoadAttemptAt;
   String? _errorMessage;
 
   String? _token;
@@ -304,6 +306,7 @@ class GroceryStoreState extends ChangeNotifier {
 
   Future<void> logout() async {
     await _resetSession();
+    await refreshStorefront();
     notifyListeners();
   }
 
@@ -314,7 +317,6 @@ class GroceryStoreState extends ChangeNotifier {
     _role = null;
     _apiClient.token = null;
     _cart.clear();
-    _products.clear();
     _orders.clear();
     _restockHistory.clear();
     _coupons.clear();
@@ -323,6 +325,8 @@ class GroceryStoreState extends ChangeNotifier {
     _mySupportTickets.clear();
     _favoriteProductIds.clear();
     _commentsByProduct.clear();
+    _hasReceivedProductsResponse = false;
+    _lastProductsLoadAttemptAt = null;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
@@ -359,7 +363,32 @@ class GroceryStoreState extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshStorefront() async {
+    await _loadProducts(includeInactive: isAuthenticated && isAdmin);
+    await _loadCategories();
+  }
+
+  Future<void> retryStorefrontIfStale({
+    Duration retryAfter = const Duration(seconds: 15),
+  }) async {
+    if (_isInitializing || _isLoadingProducts || _isLoadingCategories) {
+      return;
+    }
+    if (_hasReceivedProductsResponse) {
+      return;
+    }
+
+    final lastAttempt = _lastProductsLoadAttemptAt;
+    if (lastAttempt != null &&
+        DateTime.now().difference(lastAttempt) < retryAfter) {
+      return;
+    }
+
+    await refreshStorefront();
+  }
+
   Future<void> _loadProducts({required bool includeInactive}) async {
+    _lastProductsLoadAttemptAt = DateTime.now();
     _isLoadingProducts = true;
     notifyListeners();
     try {
@@ -369,6 +398,8 @@ class GroceryStoreState extends ChangeNotifier {
       );
       final data = response['data'] as List<dynamic>?;
       if (data != null) {
+        _hasReceivedProductsResponse = true;
+        _errorMessage = null;
         _products
           ..clear()
           ..addAll(data.map(_productFromApi));

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../store/grocery_store_state.dart';
 import '../main.dart';
 import '../widgets/app_page_route.dart';
+import '../widgets/animated_nav_items.dart';
 import '../widgets/entrance_motion.dart';
 import '../widgets/theme_mode_menu.dart';
 import '../widgets/coupon_banner.dart';
@@ -47,9 +49,79 @@ class ClientHome extends StatefulWidget {
 }
 
 class _ClientHomeState extends State<ClientHome> {
+  static const Duration _homeAutoRefreshInterval = Duration(seconds: 15);
+  static const Duration _orderProcessingMessageInterval = Duration(
+    milliseconds: 1350,
+  );
+  static const Duration _orderProcessingExitDelay = Duration(milliseconds: 820);
+  static const List<_OrderProcessingStep> _orderProcessingSteps = [
+    _OrderProcessingStep(
+      headline: 'Preparing your order',
+      message:
+          'We are reviewing your cart, coupon, and delivery details before sending everything.',
+    ),
+    _OrderProcessingStep(
+      headline: 'Reaching the server',
+      message:
+          'Your phone is connecting to the store server and sending the order request now.',
+    ),
+    _OrderProcessingStep(
+      headline: 'Waiting for confirmation',
+      message:
+          'The server is checking stock, totals, and payment information for this order.',
+    ),
+    _OrderProcessingStep(
+      headline: 'Finishing things up',
+      message:
+          'We are getting the confirmation ready so your signature and invoice can open next.',
+    ),
+  ];
+  static const _orderProcessingSuccessStep = _OrderProcessingStep(
+    headline: 'Order confirmed',
+    message: 'Your receipt is ready. Opening the confirmation view now.',
+    icon: Icons.check_circle_rounded,
+    isTerminal: true,
+  );
+  static const _orderProcessingFailureStep = _OrderProcessingStep(
+    headline: 'Order could not be completed',
+    message:
+        'We could not finish the request this time. Closing this loader and showing the error.',
+    icon: Icons.error_outline_rounded,
+    isTerminal: true,
+  );
+
   int _currentTabIndex = 0;
   int _profileMotionEpoch = 0;
   bool _couponPrompted = false;
+  bool _isManualRefreshing = false;
+  Timer? _homeAutoRefreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeAutoRefreshTimer = Timer.periodic(
+      _homeAutoRefreshInterval,
+      (_) => _maybeAutoRefreshStorefront(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant ClientHome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.store != widget.store) {
+      _homeAutoRefreshTimer?.cancel();
+      _homeAutoRefreshTimer = Timer.periodic(
+        _homeAutoRefreshInterval,
+        (_) => _maybeAutoRefreshStorefront(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _homeAutoRefreshTimer?.cancel();
+    super.dispose();
+  }
 
   String get _title {
     switch (_currentTabIndex) {
@@ -83,6 +155,35 @@ class _ClientHomeState extends State<ClientHome> {
     });
   }
 
+  void _maybeAutoRefreshStorefront() {
+    if (!mounted || _currentTabIndex != 0) {
+      return;
+    }
+    widget.store.retryStorefrontIfStale(
+      retryAfter: _homeAutoRefreshInterval,
+    );
+  }
+
+  Future<void> _refreshCurrentData() async {
+    if (_isManualRefreshing) {
+      return;
+    }
+
+    setState(() {
+      _isManualRefreshing = true;
+    });
+
+    try {
+      await widget.store.refreshAll();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isManualRefreshing = false;
+        });
+      }
+    }
+  }
+
   Widget _buildMobileDrawer(bool isMobile) {
     final topItems = _navItems
         .take(_navItems.length - 1)
@@ -99,9 +200,9 @@ class _ClientHomeState extends State<ClientHome> {
                 itemCount: topItems.length,
                 itemBuilder: (context, index) {
                   final item = topItems[index];
-                  return ListTile(
-                    leading: Icon(item.icon),
-                    title: Text(item.label),
+                  return AnimatedNavTile(
+                    icon: item.icon,
+                    label: item.label,
                     selected: _currentTabIndex == index,
                     onTap: () {
                       _selectTab(index);
@@ -116,9 +217,9 @@ class _ClientHomeState extends State<ClientHome> {
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
-              child: ListTile(
-                leading: Icon(profileItem.icon),
-                title: Text(profileItem.label),
+              child: AnimatedNavTile(
+                icon: profileItem.icon,
+                label: profileItem.label,
                 selected: _currentTabIndex == _navItems.length - 1,
                 onTap: () {
                   _selectTab(_navItems.length - 1);
@@ -129,6 +230,48 @@ class _ClientHomeState extends State<ClientHome> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopNavigationBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.65)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: _navItems.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: AnimatedNavPillButton(
+                  icon: item.icon,
+                  label: item.label,
+                  selected: _currentTabIndex == index,
+                  onTap: () => _selectTab(index),
+                ),
+              ),
+            );
+          }).toList(growable: false),
         ),
       ),
     );
@@ -613,11 +756,51 @@ class _ClientHomeState extends State<ClientHome> {
       return;
     }
 
-    final result = await widget.store.placeOrder(
-      shippingAddress: request.shippingAddress,
-      paymentMethod: request.paymentMethod,
-      couponCode: request.couponCode,
+    final processingStep = ValueNotifier<_OrderProcessingStep>(
+      _orderProcessingSteps.first,
     );
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final overlayFuture = _showOrderProcessingOverlay(
+      stepListenable: processingStep,
+      paymentMethod: request.paymentMethod,
+    );
+    var currentStepIndex = 0;
+    final processingTimer = Timer.periodic(
+      _orderProcessingMessageInterval,
+      (_) {
+        currentStepIndex = math.min(
+          currentStepIndex + 1,
+          _orderProcessingSteps.length - 1,
+        );
+        processingStep.value = _orderProcessingSteps[currentStepIndex];
+      },
+    );
+
+    PlaceOrderResult result;
+    try {
+      result = await widget.store.placeOrder(
+        shippingAddress: request.shippingAddress,
+        paymentMethod: request.paymentMethod,
+        couponCode: request.couponCode,
+      );
+    } catch (_) {
+      result = const PlaceOrderResult(
+        success: false,
+        message: 'We could not reach the server to finish the order.',
+      );
+    } finally {
+      processingTimer.cancel();
+    }
+
+    processingStep.value = result.success
+        ? _orderProcessingSuccessStep
+        : _orderProcessingFailureStep;
+    await Future<void>.delayed(_orderProcessingExitDelay);
+    if (rootNavigator.mounted && rootNavigator.canPop()) {
+      rootNavigator.pop();
+    }
+    await overlayFuture;
+    processingStep.dispose();
 
     if (!mounted) {
       return;
@@ -647,6 +830,233 @@ class _ClientHomeState extends State<ClientHome> {
         SnackBar(content: Text(result.message ?? 'Order placed successfully.')),
       );
     }
+  }
+
+  Future<void> _showOrderProcessingOverlay({
+    required ValueNotifier<_OrderProcessingStep> stepListenable,
+    required String paymentMethod,
+  }) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Processing order',
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.34),
+      transitionDuration: const Duration(milliseconds: 420),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return SafeArea(
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Container(
+                  margin: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 34,
+                        offset: const Offset(0, 18),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 28, 28, 26),
+                        child: ValueListenableBuilder<_OrderProcessingStep>(
+                          valueListenable: stepListenable,
+                          builder: (context, step, _) {
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: scheme.primaryContainer.withValues(
+                                      alpha: 0.78,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Icon(
+                                    step.isTerminal
+                                        ? step.icon
+                                        : Icons.receipt_long_rounded,
+                                    color: step.isTerminal
+                                        ? (step.icon ==
+                                                Icons.error_outline_rounded
+                                            ? scheme.error
+                                            : scheme.primary)
+                                        : scheme.primary,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'Processing your order',
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 320),
+                                  switchInCurve: Curves.easeInOutCubic,
+                                  switchOutCurve: Curves.easeInOutCubic,
+                                  transitionBuilder: (child, animation) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, 0.08),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    step.headline,
+                                    key: ValueKey(step.headline),
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.headlineSmall,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 320),
+                                  switchInCurve: Curves.easeInOutCubic,
+                                  switchOutCurve: Curves.easeInOutCubic,
+                                  transitionBuilder: (child, animation) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    );
+                                  },
+                                  child: Text(
+                                    step.message,
+                                    key: ValueKey(step.message),
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 360),
+                                  switchInCurve: Curves.easeInOutCubic,
+                                  switchOutCurve: Curves.easeInOutCubic,
+                                  transitionBuilder: (child, animation) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: ScaleTransition(
+                                        scale: Tween<double>(
+                                          begin: 0.92,
+                                          end: 1,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: step.isTerminal
+                                      ? Icon(
+                                          step.icon,
+                                          key: ValueKey(step.icon),
+                                          size: 40,
+                                          color: step.icon ==
+                                                  Icons.error_outline_rounded
+                                              ? scheme.error
+                                              : scheme.primary,
+                                        )
+                                      : SizedBox(
+                                          key: const ValueKey('loader'),
+                                          width: 38,
+                                          height: 38,
+                                          child:
+                                              CircularProgressIndicator.adaptive(
+                                            strokeWidth: 3.2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              scheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                                const SizedBox(height: 22),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.55),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Payment method',
+                                        style:
+                                            theme.textTheme.labelMedium?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        paymentMethod,
+                                        style: theme.textTheme.titleSmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+          reverseCurve: Curves.easeInOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.03),
+              end: Offset.zero,
+            ).animate(curved),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+              child: child,
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _maybeShowCouponPrompt() async {
@@ -711,6 +1121,7 @@ class _ClientHomeState extends State<ClientHome> {
                 cartQuantityForProduct: widget.store.cartQuantityForProduct,
                 onOpenProduct: _openProductDetail,
                 onAddToCart: _addToCart,
+                onRefresh: _refreshCurrentData,
                 isFavorite: widget.store.isFavorite,
                 onToggleFavorite: widget.store.toggleFavorite,
                 isLoading:
@@ -793,6 +1204,17 @@ class _ClientHomeState extends State<ClientHome> {
                 onStyleChanged: widget.onThemeStyleChanged,
                 onTriggerOrigin: widget.onThemeTriggerOrigin,
               ),
+              IconButton(
+                onPressed: _isManualRefreshing ? null : _refreshCurrentData,
+                tooltip: 'Refresh',
+                icon: _isManualRefreshing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
               const SizedBox(width: 4),
               if (_currentTabIndex != 2)
                 Padding(
@@ -815,20 +1237,7 @@ class _ClientHomeState extends State<ClientHome> {
           body: body,
           bottomNavigationBar: isMobile
               ? null
-              : NavigationBar(
-                  selectedIndex: _currentTabIndex,
-                  destinations: _navItems
-                      .map(
-                        (item) => NavigationDestination(
-                          icon: Icon(item.icon),
-                          label: item.label,
-                        ),
-                      )
-                      .toList(),
-                  onDestinationSelected: (index) {
-                    _selectTab(index);
-                  },
-                ),
+              : _buildDesktopNavigationBar(context),
         );
       },
     );
@@ -840,6 +1249,20 @@ class _NavItem {
 
   final String label;
   final IconData icon;
+}
+
+class _OrderProcessingStep {
+  const _OrderProcessingStep({
+    required this.headline,
+    required this.message,
+    this.icon = Icons.hourglass_top_rounded,
+    this.isTerminal = false,
+  });
+
+  final String headline;
+  final String message;
+  final IconData icon;
+  final bool isTerminal;
 }
 
 class _PurchaseSignatureOverlay extends StatelessWidget {

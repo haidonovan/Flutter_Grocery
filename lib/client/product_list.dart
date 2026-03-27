@@ -14,6 +14,7 @@ class ProductListPage extends StatefulWidget {
     required this.onOpenProduct,
     required this.onAddToCart,
     this.isLoading = false,
+    this.onRefresh,
     this.isFavorite,
     this.onToggleFavorite,
   });
@@ -23,6 +24,7 @@ class ProductListPage extends StatefulWidget {
   final void Function(String productId) onOpenProduct;
   final void Function(String productId) onAddToCart;
   final bool isLoading;
+  final Future<void> Function()? onRefresh;
   final bool Function(String productId)? isFavorite;
   final void Function(String productId)? onToggleFavorite;
 
@@ -122,7 +124,45 @@ class _ProductListPageState extends State<ProductListPage> {
     }
 
     if (widget.products.isEmpty) {
-      return const Center(child: Text('No products available right now.'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.inventory_2_outlined,
+                size: 52,
+                color: Theme.of(context).colorScheme.primary.withValues(
+                  alpha: 0.72,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No products available right now.',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Try refreshing to load products from the server again.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (widget.onRefresh != null) ...[
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: widget.onRefresh,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reload products'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
     }
 
     final products = _filtered;

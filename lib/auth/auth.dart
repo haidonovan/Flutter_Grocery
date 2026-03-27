@@ -222,6 +222,7 @@ class _AuthGateState extends State<AuthGate> {
                     child: ProductListPage(
                       products: products,
                       cartQuantityForProduct: (_) => 0,
+                      onRefresh: widget.store.refreshStorefront,
                       onOpenProduct: (productId) async {
                         final product = widget.store.getProductById(productId);
                         if (product == null) {

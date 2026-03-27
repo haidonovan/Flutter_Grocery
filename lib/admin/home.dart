@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../store/grocery_store_state.dart';
+import '../widgets/animated_nav_items.dart';
 import '../widgets/entrance_motion.dart';
 import '../widgets/theme_mode_menu.dart';
 import 'dashboard.dart';
@@ -40,6 +41,7 @@ class _AdminHomeState extends State<AdminHome> {
   int _selectedIndex = 0;
   String? _lastAlertSignature;
   bool _alertOpen = false;
+  bool _isManualRefreshing = false;
 
   String get _title {
     switch (_selectedIndex) {
@@ -150,6 +152,53 @@ class _AdminHomeState extends State<AdminHome> {
     });
   }
 
+  Future<void> _refreshCurrentData() async {
+    if (_isManualRefreshing) {
+      return;
+    }
+
+    setState(() {
+      _isManualRefreshing = true;
+    });
+
+    try {
+      await widget.store.refreshAll();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isManualRefreshing = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildNavigationList({
+    required bool closeDrawerOnTap,
+    EdgeInsetsGeometry padding =
+        const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+  }) {
+    return ListView.builder(
+      padding: padding,
+      itemCount: _navItems.length,
+      itemBuilder: (context, index) {
+        final item = _navItems[index];
+        return AnimatedNavTile(
+          icon: item.icon,
+          label: item.label,
+          selected: _selectedIndex == index,
+          onTap: () {
+            setState(() {
+              _selectedIndex = index;
+            });
+            if (closeDrawerOnTap) {
+              Navigator.of(context).pop();
+            }
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -159,26 +208,6 @@ class _AdminHomeState extends State<AdminHome> {
 
         final isMobile = MediaQuery.of(context).size.width < 700;
         final useRail = !isMobile && _navItems.length > 5;
-
-        final navList = ListView.builder(
-          itemCount: _navItems.length,
-          itemBuilder: (context, index) {
-            final item = _navItems[index];
-            return ListTile(
-              leading: Icon(item.icon),
-              title: Text(item.label),
-              selected: _selectedIndex == index,
-              onTap: () {
-                setState(() {
-                  _selectedIndex = index;
-                });
-                if (isMobile) {
-                  Navigator.of(context).pop();
-                }
-              },
-            );
-          },
-        );
 
         final content = IndexedStack(
           index: _selectedIndex,
@@ -229,34 +258,50 @@ class _AdminHomeState extends State<AdminHome> {
                 onTriggerOrigin: widget.onThemeTriggerOrigin,
               ),
               IconButton(
+                onPressed: _isManualRefreshing ? null : _refreshCurrentData,
+                tooltip: 'Refresh',
+                icon: _isManualRefreshing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
+              IconButton(
                 onPressed: widget.onLogout,
                 tooltip: 'Logout',
                 icon: const Icon(Icons.logout),
               ),
             ],
           ),
-          drawer: isMobile ? Drawer(child: SafeArea(child: navList)) : null,
+          drawer: isMobile
+              ? Drawer(
+                  child: SafeArea(
+                    child: _buildNavigationList(closeDrawerOnTap: true),
+                  ),
+                )
+              : null,
           body: useRail
               ? Row(
                   children: [
-                    NavigationRail(
-                      selectedIndex: _selectedIndex,
-                      onDestinationSelected: (index) {
-                        setState(() {
-                          _selectedIndex = index;
-                        });
-                      },
-                      labelType: NavigationRailLabelType.all,
-                      destinations: _navItems
-                          .map(
-                            (item) => NavigationRailDestination(
-                              icon: Icon(item.icon),
-                              label: Text(item.label),
-                            ),
-                          )
-                          .toList(),
+                    Container(
+                      width: 248,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        border: Border(
+                          right: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outlineVariant.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                      child: SafeArea(
+                        right: false,
+                        child: _buildNavigationList(closeDrawerOnTap: false),
+                      ),
                     ),
-                    const VerticalDivider(width: 1),
                     Expanded(child: content),
                   ],
                 )
