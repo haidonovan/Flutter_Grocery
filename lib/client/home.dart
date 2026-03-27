@@ -602,6 +602,7 @@ class _ClientHomeState extends State<ClientHome> {
     final request = await Navigator.of(context).push<CheckoutRequest>(
       AppPageRoute<CheckoutRequest>(
         builder: (_) => CheckoutPage(
+          apiBaseUrl: widget.store.apiBaseUrl,
           totalAmount: widget.store.cartTotal,
           itemCount: widget.store.cartItemCount,
         ),

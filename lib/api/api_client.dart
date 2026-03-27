@@ -55,7 +55,7 @@ class ApiClient {
       (baseUrl) => http
           .get(
             Uri.parse('$baseUrl$path').replace(queryParameters: query),
-            headers: _headers(),
+            headers: _headers(includeJsonContentType: false),
           )
           .timeout(_timeout),
     );
@@ -113,7 +113,10 @@ class ApiClient {
   Future<void> delete(String path) async {
     final response = await _sendWithFallback(
       (baseUrl) => http
-          .delete(Uri.parse('$baseUrl$path'), headers: _headers())
+          .delete(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(includeJsonContentType: false),
+          )
           .timeout(_timeout),
     );
     if (response.statusCode >= 400) {
@@ -127,7 +130,10 @@ class ApiClient {
   Future<Map<String, dynamic>> deleteJson(String path) async {
     final response = await _sendWithFallback(
       (baseUrl) => http
-          .delete(Uri.parse('$baseUrl$path'), headers: _headers())
+          .delete(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(includeJsonContentType: false),
+          )
           .timeout(_timeout),
     );
     return _decode(response);
@@ -175,8 +181,11 @@ class ApiClient {
     return error is TimeoutException || error is http.ClientException;
   }
 
-  Map<String, String> _headers() {
-    final headers = <String, String>{'Content-Type': 'application/json'};
+  Map<String, String> _headers({bool includeJsonContentType = true}) {
+    final headers = <String, String>{};
+    if (includeJsonContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (_token != null && _token!.isNotEmpty) {
       headers['Authorization'] = 'Bearer $_token';
     }

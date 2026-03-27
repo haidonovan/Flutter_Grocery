@@ -86,6 +86,7 @@ class GroceryStoreState extends ChangeNotifier {
   bool get isLoadingOrders => _isLoadingOrders;
   bool get isLoadingCategories => _isLoadingCategories;
   String? get errorMessage => _errorMessage;
+  String get apiBaseUrl => _apiClient.baseUrl;
 
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
   bool get isAdmin => _role == 'admin';
@@ -250,6 +251,11 @@ class GroceryStoreState extends ChangeNotifier {
       return const AuthResult(success: true);
     } on ApiException catch (err) {
       return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return AuthResult(
+        success: false,
+        message: 'Unable to reach server at ${_apiClient.baseUrl}.',
+      );
     } finally {
       _setLoading(false);
     }
@@ -286,6 +292,11 @@ class GroceryStoreState extends ChangeNotifier {
       return const AuthResult(success: true);
     } on ApiException catch (err) {
       return AuthResult(success: false, message: err.message);
+    } catch (_) {
+      return AuthResult(
+        success: false,
+        message: 'Unable to reach server at ${_apiClient.baseUrl}.',
+      );
     } finally {
       _setLoading(false);
     }
@@ -325,12 +336,12 @@ class GroceryStoreState extends ChangeNotifier {
       _orders.clear();
       _restockHistory.clear();
       _coupons.clear();
+      _activeCoupons.clear();
       _supportTickets.clear();
       _mySupportTickets.clear();
       _favoriteProductIds.clear();
       await _loadProducts(includeInactive: false);
       await _loadCategories();
-      await _loadActiveCoupons();
       return;
     }
 
@@ -366,7 +377,7 @@ class GroceryStoreState extends ChangeNotifier {
     } on ApiException catch (err) {
       _setError(err.message);
     } catch (_) {
-      _setError('Unable to reach server.');
+      _setError('Unable to reach server at ${_apiClient.baseUrl}.');
     } finally {
       _isLoadingProducts = false;
       notifyListeners();

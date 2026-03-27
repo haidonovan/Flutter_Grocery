@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PayWay Sandbox Tester</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0d14;
+    --card: #111520;
+    --border: #1e2535;
+    --accent: #00d4aa;
+    --accent2: #0088ff;
+    --warn: #ff6b35;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --success: #22c55e;
+    --error: #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .logo {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+
+  h1 { font-size: 22px; font-weight: 600; }
+  .badge {
+    background: rgba(0,212,170,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,170,0.3);
+    padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media(max-width:900px){ .grid{ grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  .card h2 {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 span { font-size: 16px; }
+
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  label .req { color: var(--warn); }
+
+  input, select, textarea {
+    width: 100%; padding: 9px 13px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    transition: border 0.2s;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent2); }
+  select option { background: #1a2030; }
+  textarea { resize: vertical; min-height: 70px; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .info-box {
+    background: rgba(0,136,255,0.08);
+    border: 1px solid rgba(0,136,255,0.25);
+    border-radius: 10px; padding: 14px; margin-bottom: 20px;
+    font-size: 13px; color: #94b8e0; line-height: 1.6;
+  }
+  .info-box strong { color: var(--accent2); }
+
+  .warn-box {
+    background: rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.25);
+    border-radius: 10px; padding: 14px; margin-bottom: 20px;
+    font-size: 13px; color: #e8a07d; line-height: 1.6;
+  }
+  .warn-box strong { color: var(--warn); }
+
+  .btn {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 10px;
+    color: #000; font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.04em;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-sec {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text); margin-top: 8px;
+  }
+  .btn-sec:hover { border-color: var(--accent); color: var(--accent); }
+
+  .hash-display {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--accent); word-break: break-all;
+    min-height: 60px; line-height: 1.5;
+    margin-top: 10px;
+  }
+
+  .response-area {
+    grid-column: 1 / -1;
+  }
+
+  .resp-block {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+    min-height: 80px; max-height: 320px; overflow-y: auto;
+    color: var(--muted);
+  }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; margin-bottom: 10px;
+  }
+  .status-ok { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+  .status-err { background: rgba(239,68,68,0.15); color: var(--error); border: 1px solid rgba(239,68,68,0.3); }
+  .status-info { background: rgba(0,136,255,0.12); color: var(--accent2); border: 1px solid rgba(0,136,255,0.25); }
+
+  .checkout-frame {
+    width: 100%; height: 600px; border: none; border-radius: 10px;
+    background: #fff; margin-top: 14px;
+    display: none;
+  }
+
+  .step-row {
+    display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px;
+  }
+  .step-num {
+    width: 26px; height: 26px; min-width: 26px;
+    background: rgba(0,212,170,0.12); border: 1px solid rgba(0,212,170,0.3);
+    color: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .step-text { font-size: 13px; line-height: 1.5; color: #94a3b8; padding-top: 3px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  .hash-string-preview {
+    background: rgba(0,0,0,0.3);
+    border: 1px dashed var(--border);
+    border-radius: 6px; padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #4a6078;
+    word-break: break-all; line-height: 1.5;
+    max-height: 80px; overflow: auto;
+    margin-top: 8px;
+  }
+
+  .test-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+  .test-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .test-card:hover { border-color: var(--accent); }
+  .test-card .card-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); }
+  .test-card .card-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">💳</div>
+  <div>
+    <h1>PayWay Sandbox Tester</h1>
+  </div>
+  <span class="badge">SANDBOX</span>
+</div>
+
+<div class="warn-box">
+  <strong>⚠️ Important – Whitelisted Domain Required</strong><br>
+  PayWay only allows API calls from a <strong>whitelisted domain or IP</strong>. 
+  You must run this from a server/domain you registered with PayWay. 
+  Calling from a non-whitelisted origin returns <strong>error code 6 "wrong domain"</strong>.
+  Open this HTML file on your whitelisted server, or use the <strong>cURL / Node.js code</strong> tab to test from your backend.
+</div>
+
+<div class="grid">
+
+  <!-- LEFT: Form -->
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <h2><span>🔑</span> Merchant Credentials</h2>
+      <div class="field">
+        <label>Merchant ID <span class="req">*</span></label>
+        <input id="merchant_id" type="text" value="ec474607">
+      </div>
+      <div class="field">
+        <label>Public Key (for HMAC-SHA512 Hash) <span class="req">*</span></label>
+        <input id="public_key" type="text" value="cdeebf229d112d3d0a0f678b62587e79e91f173f">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>🛒</span> Transaction Details</h2>
+
+      <div class="row">
+        <div class="field">
+          <label>Transaction ID <span class="req">*</span> <small style="color:#4a6078">(unique per order)</small></label>
+          <input id="tran_id" type="text" value="">
+        </div>
+        <div class="field">
+          <label>Amount (USD) <span class="req">*</span></label>
+          <input id="amount" type="number" step="0.01" value="1.00">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Payment Option <span class="req">*</span></label>
+        <select id="payment_option">
+          <option value="cards">cards – Visa/Mastercard/UPI</option>
+          <option value="abapay">abapay – ABA Pay QR</option>
+          <option value="abapay_deeplink">abapay_deeplink – Mobile Deeplink</option>
+          <option value="bakong">bakong – Bakong QR</option>
+          <option value="wechat">wechat</option>
+          <option value="alipay">alipay</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Currency</label>
+          <select id="currency">
+            <option value="USD">USD</option>
+            <option value="KHR">KHR</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Language</label>
+          <select id="language">
+            <option value="en">English</option>
+            <option value="km">Khmer</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="row">
+        <div class="field">
+          <label>First Name</label>
+          <input id="firstname" type="text" value="Test">
+        </div>
+        <div class="field">
+          <label>Last Name</label>
+          <input id="lastname" type="text" value="User">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Email</label>
+          <input id="email" type="email" value="test@example.com">
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input id="phone" type="text" value="0123456789">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Return URL (optional – base64 encoded internally)</label>
+        <input id="return_url" type="text" placeholder="https://yourdomain.com/success">
+      </div>
+      <div class="field">
+        <label>Continue Success URL (optional)</label>
+        <input id="continue_success_url" type="text" placeholder="https://yourdomain.com/done">
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Hash + Response -->
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <h2><span>🔐</span> Hash Generation</h2>
+      <div class="info-box">
+        <strong>How PayWay Hash Works:</strong><br>
+        Hash = <code>HMAC-SHA512( req_time + merchant_id + tran_id + amount + items + shipping + ctid + pwt + firstname + lastname + email + phone + type + payment_option + return_url + cancel_url + continue_success_url + return_deeplink + currency + custom_fields + return_params, public_key )</code><br>
+        Then <strong>Base64-encode</strong> the raw bytes.
+      </div>
+
+      <div class="field">
+        <label>Generated Hash String (pre-encode)</label>
+        <div class="hash-string-preview" id="hashStringPreview">Fill in the form and click Generate Hash...</div>
+      </div>
+      <div class="field">
+        <label>Final Hash (Base64 of HMAC-SHA512)</label>
+        <div class="hash-display" id="hashDisplay">—</div>
+      </div>
+
+      <button class="btn btn-sec" onclick="generateHash()">🔄 Generate Hash</button>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <h2><span>🚀</span> Send Request</h2>
+      <button class="btn" id="sendBtn" onclick="sendRequest()">Send to PayWay Sandbox</button>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">
+        POST multipart/form-data → checkout-sandbox.payway.com.kh
+      </p>
+    </div>
+
+    <div class="card">
+      <h2><span>📋</span> Generated Code</h2>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-sec" style="width:auto;padding:6px 14px;font-size:12px" onclick="showCode('curl')">cURL</button>
+        <button class="btn btn-sec" style="width:auto;padding:6px 14px;font-size:12px" onclick="showCode('php')">PHP</button>
+        <button class="btn btn-sec" style="width:auto;padding:6px 14px;font-size:12px" onclick="showCode('node')">Node.js</button>
+      </div>
+      <div class="resp-block" id="codeBlock" style="color:#94a3b8;font-size:11px">Click a language button above to generate server-side code...</div>
+    </div>
+  </div>
+
+  <!-- Response area full width -->
+  <div class="response-area card">
+    <h2><span>📡</span> Response</h2>
+    <div id="statusBadge"></div>
+    <div class="resp-block" id="responseBlock">Response will appear here after sending the request...</div>
+
+    <div id="iframeSection" style="display:none;margin-top:16px;">
+      <div class="info-box">✅ PayWay returned a checkout URL. Rendering checkout iframe below:</div>
+      <iframe class="checkout-frame" id="checkoutFrame" style="display:block;"></iframe>
+    </div>
+
+    <div id="qrSection" style="display:none;margin-top:16px;">
+      <div class="info-box">✅ QR / Deeplink returned. Use this in your app or display to customer.</div>
+      <div class="hash-display" id="qrData"></div>
+    </div>
+  </div>
+
+  <!-- Test Cards -->
+  <div class="card" style="grid-column:1/-1">
+    <h2><span>💳</span> Sandbox Test Cards</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Use these card numbers in the PayWay checkout iframe. CVV: any 3 digits. Expiry: any future date.</p>
+    <div class="test-cards">
+      <div class="test-card">
+        <div class="card-num">4111 1111 1111 1111</div>
+        <div class="card-desc">Visa – Approved</div>
+      </div>
+      <div class="test-card">
+        <div class="card-num">5500 0000 0000 0004</div>
+        <div class="card-desc">Mastercard – Approved</div>
+      </div>
+      <div class="test-card">
+        <div class="card-num">4111 1111 1111 1111</div>
+        <div class="card-desc">Visa – use amount 0.01 for decline test</div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:12px">
+      ℹ️ Check the official PayWay merchant portal for the full list of sandbox test card numbers.
+    </p>
+  </div>
+
+  <!-- How it works -->
+  <div class="card" style="grid-column:1/-1">
+    <h2><span>📖</span> How It Works – Sequence</h2>
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><strong style="color:var(--text)">Fill in transaction details</strong> – Set Merchant ID, amount, payment option, and your unique Transaction ID (must be unique per order).</div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><strong style="color:var(--text)">Generate Hash</strong> – The hash is HMAC-SHA512 of concatenated fields signed with your Public Key, then Base64-encoded. This prevents tampering.</div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><strong style="color:var(--text)">POST to PayWay</strong> – Send all fields + hash as <code style="color:var(--accent)">multipart/form-data</code> from a whitelisted domain.</div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><strong style="color:var(--text)">Render checkout</strong> – For <code style="color:var(--accent)">cards</code>: embed the returned checkout URL in an <code style="color:var(--accent)">&lt;iframe&gt;</code>. For ABA Pay: show the QR string.</div></div>
+    <div class="step-row"><div class="step-num">5</div><div class="step-text"><strong style="color:var(--text)">Receive pushback</strong> – After payment, PayWay POSTs a notification to your <code style="color:var(--accent)">return_url</code> with transaction status, bank ref, and amount.</div></div>
+  </div>
+</div>
+
+<script>
+// --- Utility ---
+function ts() {
+  const d = new Date();
+  return d.getUTCFullYear()
+    + String(d.getUTCMonth()+1).padStart(2,'0')
+    + String(d.getUTCDate()).padStart(2,'0')
+    + String(d.getUTCHours()).padStart(2,'0')
+    + String(d.getUTCMinutes()).padStart(2,'0')
+    + String(d.getUTCSeconds()).padStart(2,'0');
+}
+
+function g(id){ return document.getElementById(id).value.trim(); }
+
+// Auto-generate unique tran_id on load
+document.getElementById('tran_id').value = 'TEST-' + Date.now().toString().slice(-8);
+
+// HMAC-SHA512 via SubtleCrypto
+async function hmacSha512Base64(message, key) {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', enc.encode(key),
+    { name: 'HMAC', hash: 'SHA-512' },
+    false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message));
+  // base64 encode
+  const bytes = new Uint8Array(sig);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+
+function buildHashString(params) {
+  // Exact order from PayWay docs:
+  // req_time + merchant_id + tran_id + amount + items + shipping + ctid + pwt + 
+  // firstname + lastname + email + phone + type + payment_option + 
+  // return_url + cancel_url + continue_success_url + return_deeplink + 
+  // currency + custom_fields + return_params
+  const fields = [
+    params.req_time, params.merchant_id, params.tran_id, params.amount,
+    params.items||'', params.shipping||'', params.ctid||'', params.pwt||'',
+    params.firstname||'', params.lastname||'', params.email||'', params.phone||'',
+    params.type||'', params.payment_option,
+    params.return_url||'', params.cancel_url||'', params.continue_success_url||'',
+    params.return_deeplink||'', params.currency||'',
+    params.custom_fields||'', params.return_params||''
+  ];
+  return fields.join('');
+}
+
+async function generateHash() {
+  const params = getParams();
+  const str = buildHashString(params);
+  document.getElementById('hashStringPreview').textContent = str;
+  const hash = await hmacSha512Base64(str, params.public_key);
+  document.getElementById('hashDisplay').textContent = hash;
+  return hash;
+}
+
+function getParams() {
+  return {
+    req_time: ts(),
+    merchant_id: g('merchant_id'),
+    tran_id: g('tran_id'),
+    amount: g('amount'),
+    firstname: g('firstname'),
+    lastname: g('lastname'),
+    email: g('email'),
+    phone: g('phone'),
+    payment_option: g('payment_option'),
+    currency: g('currency'),
+    return_url: g('return_url') ? btoa(g('return_url')) : '',
+    continue_success_url: g('continue_success_url'),
+    public_key: g('public_key'),
+    type: 'purchase',
+    items: '',
+  };
+}
+
+async function sendRequest() {
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  document.getElementById('responseBlock').textContent = 'Waiting for response…';
+  document.getElementById('statusBadge').innerHTML = '';
+  document.getElementById('iframeSection').style.display = 'none';
+  document.getElementById('qrSection').style.display = 'none';
+
+  try {
+    const params = getParams();
+    const hash = await hmacSha512Base64(buildHashString(params), params.public_key);
+    document.getElementById('hashDisplay').textContent = hash;
+
+    const fd = new FormData();
+    fd.append('req_time', params.req_time);
+    fd.append('merchant_id', params.merchant_id);
+    fd.append('tran_id', params.tran_id);
+    fd.append('amount', params.amount);
+    fd.append('payment_option', params.payment_option);
+    fd.append('currency', params.currency);
+    fd.append('type', 'purchase');
+    if(params.firstname) fd.append('firstname', params.firstname);
+    if(params.lastname)  fd.append('lastname', params.lastname);
+    if(params.email)     fd.append('email', params.email);
+    if(params.phone)     fd.append('phone', params.phone);
+    if(params.return_url) fd.append('return_url', params.return_url);
+    if(params.continue_success_url) fd.append('continue_success_url', params.continue_success_url);
+    fd.append('hash', hash);
+
+    const res = await fetch('https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase', {
+      method: 'POST',
+      body: fd
+    });
+
+    const text = await res.text();
+    let pretty = text;
+    try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch(e){}
+
+    document.getElementById('responseBlock').textContent = pretty;
+
+    const data = JSON.parse(text);
+
+    if(data.status && data.status.code === '00') {
+      document.getElementById('statusBadge').innerHTML = '<span class="status-badge status-ok">✅ SUCCESS</span>';
+      if(data.checkout_url) {
+        document.getElementById('iframeSection').style.display = 'block';
+        document.getElementById('checkoutFrame').src = data.checkout_url;
+      } else if(data.qrString || data.abapay_deeplink) {
+        document.getElementById('qrSection').style.display = 'block';
+        document.getElementById('qrData').textContent = data.qrString || data.abapay_deeplink;
+      }
+    } else {
+      const code = data.status ? data.status.code : res.status;
+      const msg = data.status ? data.status.message : text;
+      document.getElementById('statusBadge').innerHTML = `<span class="status-badge status-err">❌ Error ${code}: ${msg}</span>`;
+    }
+
+  } catch(err) {
+    document.getElementById('responseBlock').textContent = 'Fetch error:\n' + err.message + '\n\nNote: This likely means your current domain/IP is not whitelisted by PayWay, or there is a CORS restriction. Use the generated cURL/Node.js code to call from your backend server instead.';
+    document.getElementById('statusBadge').innerHTML = '<span class="status-badge status-err">❌ Network / CORS Error</span>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Send to PayWay Sandbox';
+}
+
+function showCode(lang) {
+  const p = getParams();
+  const req_time = ts();
+  const merchant_id = p.merchant_id;
+  const public_key = p.public_key;
+  const tran_id = p.tran_id;
+  const amount = p.amount;
+  const payment_option = p.payment_option;
+  const currency = p.currency;
+  const URL = 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase';
+
+  let code = '';
+  if(lang === 'curl') {
+    code = `# ⚠️ Run this from your WHITELISTED server/domain
+# First generate the hash (see PHP/Node example), then:
+
+curl -X POST "${URL}" \\
+  -F "req_time=${req_time}" \\
+  -F "merchant_id=${merchant_id}" \\
+  -F "tran_id=${tran_id}" \\
+  -F "amount=${amount}" \\
+  -F "payment_option=${payment_option}" \\
+  -F "currency=${currency}" \\
+  -F "type=purchase" \\
+  -F "firstname=${p.firstname}" \\
+  -F "lastname=${p.lastname}" \\
+  -F "email=${p.email}" \\
+  -F "phone=${p.phone}" \\
+  -F "hash=<YOUR_GENERATED_HASH>"
+`;
+  } else if(lang === 'php') {
+    code = `<?php
+// ⚠️ Run from your whitelisted server
+
+$public_key   = '${public_key}';
+$merchant_id  = '${merchant_id}';
+$tran_id      = '${tran_id}';
+$amount       = '${amount}';
+$payment_option = '${payment_option}';
+$req_time     = date('YmdHis');
+
+// Build hash string (maintain exact field order!)
+$hash_str = $req_time . $merchant_id . $tran_id . $amount
+  . '' . '' . '' . ''                          // items, shipping, ctid, pwt
+  . '${p.firstname}' . '${p.lastname}' . '${p.email}' . '${p.phone}'
+  . 'purchase' . $payment_option
+  . '' . '' . '' . ''                          // return_url, cancel_url, continue_success_url, return_deeplink
+  . '${currency}' . '' . '';                   // currency, custom_fields, return_params
+
+$hash = base64_encode(hash_hmac('sha512', $hash_str, $public_key, true));
+
+$data = [
+  'req_time'       => $req_time,
+  'merchant_id'    => $merchant_id,
+  'tran_id'        => $tran_id,
+  'amount'         => $amount,
+  'payment_option' => $payment_option,
+  'currency'       => '${currency}',
+  'type'           => 'purchase',
+  'firstname'      => '${p.firstname}',
+  'lastname'       => '${p.lastname}',
+  'email'          => '${p.email}',
+  'phone'          => '${p.phone}',
+  'hash'           => $hash,
+];
+
+$ch = curl_init('${URL}');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+
+$result = json_decode($response, true);
+print_r($result);
+
+// If result has checkout_url -> embed in iframe
+// If result has qrString -> display as QR
+?>`;
+  } else if(lang === 'node') {
+    code = `// ⚠️ Run from your whitelisted server
+// npm install axios form-data
+
+const crypto = require('crypto');
+const axios  = require('axios');
+const FormData = require('form-data');
+
+const PUBLIC_KEY   = '${public_key}';
+const MERCHANT_ID  = '${merchant_id}';
+const API_URL      = '${URL}';
+
+function reqTime() {
+  return new Date().toISOString().replace(/[-T:Z.]/g,'').slice(0,14);
+}
+
+function generateHash(params, key) {
+  const str = [
+    params.req_time, params.merchant_id, params.tran_id, params.amount,
+    '', '', '', '',                                           // items, shipping, ctid, pwt
+    params.firstname||'', params.lastname||'',
+    params.email||'', params.phone||'',
+    params.type||'', params.payment_option,
+    params.return_url||'', params.cancel_url||'',
+    params.continue_success_url||'', params.return_deeplink||'',
+    params.currency||'', params.custom_fields||'', params.return_params||''
+  ].join('');
+  return crypto.createHmac('sha512', key).update(str).digest('base64');
+}
+
+async function createPayment() {
+  const params = {
+    req_time: reqTime(),
+    merchant_id: MERCHANT_ID,
+    tran_id: 'TEST-' + Date.now(),
+    amount: '${amount}',
+    payment_option: '${payment_option}',
+    currency: '${currency}',
+    type: 'purchase',
+    firstname: '${p.firstname}',
+    lastname: '${p.lastname}',
+    email: '${p.email}',
+    phone: '${p.phone}',
+  };
+
+  params.hash = generateHash(params, PUBLIC_KEY);
+
+  const form = new FormData();
+  Object.entries(params).forEach(([k,v]) => form.append(k, v));
+
+  const res = await axios.post(API_URL, form, { headers: form.getHeaders() });
+  console.log(JSON.stringify(res.data, null, 2));
+
+  // Handle response:
+  if(res.data.status?.code === '00') {
+    if(res.data.checkout_url) {
+      console.log('Embed this in iframe:', res.data.checkout_url);
+    } else if(res.data.qrString) {
+      console.log('Show this QR to customer:', res.data.qrString);
+    }
+  }
+}
+
+createPayment().catch(console.error);
+`;
+  }
+
+  document.getElementById('codeBlock').textContent = code;
+}
+
+// Auto-generate on load
+generateHash();
+</script>
+</body>
+</html>

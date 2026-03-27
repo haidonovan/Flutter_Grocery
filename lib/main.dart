@@ -30,6 +30,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
     'API_FALLBACK_URL',
     defaultValue: '',
   );
+  static const String _localWebApiBaseUrl = 'http://localhost:4000';
+  static const String _localAndroidApiBaseUrl = 'http://10.0.2.2:4000';
+  static const String _localDesktopApiBaseUrl = 'http://localhost:4000';
   static const String _onlineApiBaseUrl =
       'https://grocerystore-production-eea3.up.railway.app';
   static const String _themePrefKey = 'theme_mode';
@@ -68,12 +71,9 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
     if (_apiBaseUrlEnv.isNotEmpty) {
       return _apiBaseUrlEnv;
     }
-    if (kIsWeb) {
-      final host = Uri.base.host;
-      if (host == 'localhost' || host == '127.0.0.1') {
-        return 'http://localhost:4000';
-      }
-      return _onlineApiBaseUrl;
+    final localBaseUrl = _resolveLocalApiBaseUrl();
+    if (localBaseUrl != null) {
+      return localBaseUrl;
     }
     return _onlineApiBaseUrl;
   }
@@ -86,13 +86,39 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       return null;
     }
     if (kIsWeb) {
+      return null;
+    }
+    final localBaseUrl = _resolveLocalApiBaseUrl();
+    if (localBaseUrl != null) {
+      return _onlineApiBaseUrl;
+    }
+    return null;
+  }
+
+  String? _resolveLocalApiBaseUrl() {
+    if (kIsWeb) {
       final host = Uri.base.host;
       if (host == 'localhost' || host == '127.0.0.1') {
-        return _onlineApiBaseUrl;
+        return _localWebApiBaseUrl;
       }
       return null;
     }
-    return null;
+
+    if (kReleaseMode) {
+      return null;
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return _localAndroidApiBaseUrl;
+      case TargetPlatform.iOS:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+        return _localDesktopApiBaseUrl;
+      case TargetPlatform.fuchsia:
+        return null;
+    }
   }
 
   Future<void> _loadThemeMode() async {
