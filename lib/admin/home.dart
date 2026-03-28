@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../main.dart';
 import '../store/grocery_store_state.dart';
 import '../widgets/animated_nav_items.dart';
 import '../widgets/entrance_motion.dart';
+import '../widgets/profile_image_picker.dart';
 import '../widgets/theme_mode_menu.dart';
 import 'dashboard.dart';
 import 'coupons.dart';
@@ -199,6 +201,82 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
+  Widget _buildNavigationPanel({
+    required bool closeDrawerOnTap,
+    EdgeInsetsGeometry padding =
+        const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+  }) {
+    return Column(
+      children: [
+        Expanded(
+          child: _buildNavigationList(
+            closeDrawerOnTap: closeDrawerOnTap,
+            padding: padding,
+          ),
+        ),
+        const Divider(height: 1),
+        _AdminIdentityPanel(
+          name: widget.store.userDisplayName,
+          email: widget.store.userEmail,
+          imageUrl: widget.store.userProfileImageUrl,
+          onTap: () => _openAdminProfile(closeDrawerFirst: closeDrawerOnTap),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openAdminProfile({required bool closeDrawerFirst}) async {
+    Future<void> presentProfile() async {
+      if (!mounted) {
+        return;
+      }
+
+      final isCompact = MediaQuery.of(context).size.width < 700;
+
+      if (isCompact) {
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (context) => SafeArea(
+            child: _AdminProfilePanel(
+              store: widget.store,
+              onLogout: widget.onLogout,
+            ),
+          ),
+        );
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: _AdminProfilePanel(
+              store: widget.store,
+              onLogout: widget.onLogout,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (closeDrawerFirst) {
+      Navigator.of(context).pop();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        presentProfile();
+      });
+      return;
+    }
+
+    await presentProfile();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -278,7 +356,7 @@ class _AdminHomeState extends State<AdminHome> {
           drawer: isMobile
               ? Drawer(
                   child: SafeArea(
-                    child: _buildNavigationList(closeDrawerOnTap: true),
+                    child: _buildNavigationPanel(closeDrawerOnTap: true),
                   ),
                 )
               : null,
@@ -299,7 +377,7 @@ class _AdminHomeState extends State<AdminHome> {
                       ),
                       child: SafeArea(
                         right: false,
-                        child: _buildNavigationList(closeDrawerOnTap: false),
+                        child: _buildNavigationPanel(closeDrawerOnTap: false),
                       ),
                     ),
                     Expanded(child: content),
@@ -425,4 +503,560 @@ class _NavItem {
 
   final String label;
   final IconData icon;
+}
+
+class _AdminIdentityPanel extends StatefulWidget {
+  const _AdminIdentityPanel({
+    required this.name,
+    required this.email,
+    required this.imageUrl,
+    required this.onTap,
+  });
+
+  final String name;
+  final String email;
+  final String? imageUrl;
+  final VoidCallback onTap;
+
+  @override
+  State<_AdminIdentityPanel> createState() => _AdminIdentityPanelState();
+}
+
+class _AdminIdentityPanelState extends State<_AdminIdentityPanel> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final trimmedName = widget.name.trim();
+    final email = widget.email.trim();
+    final displayName = trimmedName.isNotEmpty ? trimmedName : email;
+    final initialsSource = displayName.isNotEmpty ? displayName : 'Admin';
+    final parts = initialsSource
+        .split(' ')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    final initials = parts.isNotEmpty
+        ? parts.take(2).map((value) => value[0].toUpperCase()).join()
+        : 'A';
+    final showEmail = email.isNotEmpty && displayName != email;
+    final backgroundColor = _pressed
+        ? scheme.primary.withValues(alpha: 0.12)
+        : _hovered
+        ? scheme.primary.withValues(alpha: 0.08)
+        : scheme.surfaceContainerHighest.withValues(alpha: 0.45);
+    final borderColor = _hovered
+        ? scheme.outlineVariant.withValues(alpha: 0.75)
+        : scheme.outlineVariant.withValues(alpha: 0.4);
+    final avatarShellColor = _hovered
+        ? scheme.primary.withValues(alpha: 0.12)
+        : Colors.transparent;
+    final nameColor = _hovered ? scheme.onSurface : scheme.onSurface;
+    final emailColor = _hovered ? scheme.onSurface : scheme.onSurfaceVariant;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: widget.onTap,
+            onHighlightChanged: (value) {
+              if (mounted) {
+                setState(() => _pressed = value);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOutCubic,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOutCubic,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: avatarShellColor,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: _AdminDrawerAvatar(
+                      imageUrl: widget.imageUrl,
+                      initials: initials,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeInOutCubic,
+                          style:
+                              (theme.textTheme.titleSmall ?? const TextStyle())
+                                  .copyWith(
+                                    color: nameColor,
+                                    fontWeight: _hovered
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                  ),
+                          child: Text(
+                            displayName.isNotEmpty ? displayName : 'Admin',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (showEmail) ...[
+                          const SizedBox(height: 4),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeInOutCubic,
+                            style:
+                                (theme.textTheme.bodySmall ?? const TextStyle())
+                                    .copyWith(color: emailColor),
+                            child: Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: _hovered
+                        ? scheme.onSurface
+                        : scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminDrawerAvatar extends StatelessWidget {
+  const _AdminDrawerAvatar({
+    required this.imageUrl,
+    required this.initials,
+    this.size = 52,
+  });
+
+  final String? imageUrl;
+  final String initials;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            scheme.primaryContainer.withValues(alpha: 0.95),
+            scheme.secondaryContainer.withValues(alpha: 0.85),
+          ],
+        ),
+      ),
+      child: ClipOval(
+        child: hasImage
+            ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _AdminDrawerAvatarFallback(initials: initials);
+                },
+              )
+            : _AdminDrawerAvatarFallback(initials: initials),
+      ),
+    );
+  }
+}
+
+class _AdminDrawerAvatarFallback extends StatelessWidget {
+  const _AdminDrawerAvatarFallback({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Text(
+        initials,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: scheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminProfilePanel extends StatefulWidget {
+  const _AdminProfilePanel({
+    required this.store,
+    required this.onLogout,
+  });
+
+  final GroceryStoreState store;
+  final VoidCallback onLogout;
+
+  @override
+  State<_AdminProfilePanel> createState() => _AdminProfilePanelState();
+}
+
+class _AdminProfilePanelState extends State<_AdminProfilePanel> {
+  bool _uploadingProfileImage = false;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickProfileImage() async {
+    final file = await pickProfileImageWithOptions(
+      context,
+      picker: _picker,
+      title: 'Update admin profile photo',
+    );
+    if (file == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _uploadingProfileImage = true;
+    });
+
+    try {
+      final uploadedUrl = await widget.store.uploadProfileImage(file);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            uploadedUrl != null && uploadedUrl.isNotEmpty
+                ? 'Admin profile photo updated.'
+                : 'Admin profile photo upload failed.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploadingProfileImage = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.store,
+      builder: (context, _) {
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        final trimmedName = widget.store.userDisplayName.trim();
+        final trimmedEmail = widget.store.userEmail.trim();
+        final displayName = trimmedName.isNotEmpty ? trimmedName : trimmedEmail;
+        final initialsSource = displayName.isNotEmpty ? displayName : 'Admin';
+        final initials = initialsSource
+            .split(' ')
+            .map((part) => part.trim())
+            .where((part) => part.isNotEmpty)
+            .take(2)
+            .map((part) => part[0].toUpperCase())
+            .join();
+        final openTicketCount = widget.store.supportTickets
+            .where((ticket) => ticket.status != 'closed')
+            .length;
+        final statCards = [
+          _AdminProfileStat(
+            label: 'Products',
+            value: '${widget.store.allProducts.length}',
+            icon: Icons.shopping_bag_outlined,
+          ),
+          _AdminProfileStat(
+            label: 'Orders',
+            value: '${widget.store.allOrders.length}',
+            icon: Icons.receipt_long_outlined,
+          ),
+          _AdminProfileStat(
+            label: 'Open Tickets',
+            value: '$openTicketCount',
+            icon: Icons.support_agent_outlined,
+          ),
+          _AdminProfileStat(
+            label: 'Revenue',
+            value: '\$${widget.store.revenueTotal.toStringAsFixed(2)}',
+            icon: Icons.payments_outlined,
+          ),
+        ];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _AdminEditableAvatar(
+                    imageUrl: widget.store.userProfileImageUrl,
+                    initials: initials.isNotEmpty ? initials : 'A',
+                    uploading: _uploadingProfileImage,
+                    onTap: _pickProfileImage,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Admin profile',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          displayName.isNotEmpty
+                              ? displayName
+                              : 'Administrator',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (trimmedEmail.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            trimmedEmail,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap the avatar to take a new photo or choose one from this device.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Administrator',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: scheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Signed in to manage the Fresh Mart catalog, orders, support tickets, and store operations.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.45,
+                ),
+                itemCount: statCards.length,
+                itemBuilder: (context, index) {
+                  final stat = statCards[index];
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: scheme.outlineVariant.withValues(alpha: 0.36),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(stat.icon, color: scheme.primary),
+                        const SizedBox(height: 10),
+                        Text(
+                          stat.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          stat.label,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  widget.onLogout();
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Logout'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AdminProfileStat {
+  const _AdminProfileStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+}
+
+class _AdminEditableAvatar extends StatelessWidget {
+  const _AdminEditableAvatar({
+    required this.imageUrl,
+    required this.initials,
+    required this.uploading,
+    required this.onTap,
+  });
+
+  final String? imageUrl;
+  final String initials;
+  final bool uploading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: 'Upload admin profile image',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: uploading ? null : onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _AdminDrawerAvatar(
+                imageUrl: imageUrl,
+                initials: initials,
+                size: 78,
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  child: uploading
+                      ? Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: scheme.primary,
+                          ),
+                        )
+                      : Icon(
+                          Icons.photo_camera_outlined,
+                          size: 16,
+                          color: scheme.primary,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

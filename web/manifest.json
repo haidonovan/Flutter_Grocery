@@ -1,11 +1,11 @@
 {
-    "name": "flutter_app",
-    "short_name": "flutter_app",
+    "name": "Fresh Mart",
+    "short_name": "Fresh Mart",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B0F14",
+    "theme_color": "#127C73",
+    "description": "Fresh Mart grocery shopping for customers and admins.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

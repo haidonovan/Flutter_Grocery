@@ -536,23 +536,7 @@ class GroceryStoreState extends ChangeNotifier {
       final data = response['data'] as List<dynamic>? ?? [];
       _coupons
         ..clear()
-        ..addAll(
-          data.map((raw) {
-            final map = raw as Map<String, dynamic>;
-            return Coupon(
-              id: (map['id'] as num?)?.toInt() ?? 0,
-              code: map['code']?.toString() ?? '',
-              type: map['type']?.toString() ?? 'percent',
-              value: (map['value'] as num?)?.toDouble() ?? 0,
-              isActive: map['isActive'] == true,
-              description: map['description']?.toString(),
-              startsAt: DateTime.tryParse(map['startsAt']?.toString() ?? ''),
-              endsAt: DateTime.tryParse(map['endsAt']?.toString() ?? ''),
-              audience: map['audience']?.toString(),
-              userEmail: map['userEmail']?.toString(),
-            );
-          }),
-        );
+        ..addAll(data.map(_couponFromApi));
       notifyListeners();
     } catch (_) {
       // ignore coupon load failures for now
@@ -565,23 +549,7 @@ class GroceryStoreState extends ChangeNotifier {
       final data = response['data'] as List<dynamic>? ?? [];
       _activeCoupons
         ..clear()
-        ..addAll(
-          data.map((raw) {
-            final map = raw as Map<String, dynamic>;
-            return Coupon(
-              id: (map['id'] as num?)?.toInt() ?? 0,
-              code: map['code']?.toString() ?? '',
-              type: map['type']?.toString() ?? 'percent',
-              value: (map['value'] as num?)?.toDouble() ?? 0,
-              isActive: map['isActive'] == true,
-              description: map['description']?.toString(),
-              startsAt: DateTime.tryParse(map['startsAt']?.toString() ?? ''),
-              endsAt: DateTime.tryParse(map['endsAt']?.toString() ?? ''),
-              audience: map['audience']?.toString(),
-              userEmail: map['userEmail']?.toString(),
-            );
-          }),
-        );
+        ..addAll(data.map(_couponFromApi));
       notifyListeners();
     } catch (_) {
       // ignore active coupons load failures
@@ -683,6 +651,7 @@ class GroceryStoreState extends ChangeNotifier {
         ..addAll(
           data.map((raw) {
             final map = raw as Map<String, dynamic>;
+            final user = map['user'] as Map<String, dynamic>?;
             return SupportTicket(
               id: (map['id'] as num?)?.toInt() ?? 0,
               subject: map['subject']?.toString() ?? '',
@@ -694,10 +663,10 @@ class GroceryStoreState extends ChangeNotifier {
               adminReply: map['adminReply']?.toString(),
               repliedAt: DateTime.tryParse(map['repliedAt']?.toString() ?? ''),
               closedAt: DateTime.tryParse(map['closedAt']?.toString() ?? ''),
-              userEmail:
-                  (map['user'] as Map<String, dynamic>?)?['email']
-                      ?.toString() ??
-                  '',
+              userEmail: user?['email']?.toString() ?? '',
+              userFirstName: user?['firstName']?.toString(),
+              userLastName: user?['lastName']?.toString(),
+              userProfileImageUrl: user?['profileImageUrl']?.toString(),
               messages: _supportMessagesFromApi(map['messages']),
             );
           }),
@@ -733,6 +702,9 @@ class GroceryStoreState extends ChangeNotifier {
               repliedAt: DateTime.tryParse(map['repliedAt']?.toString() ?? ''),
               closedAt: DateTime.tryParse(map['closedAt']?.toString() ?? ''),
               userEmail: _userEmail ?? '',
+              userFirstName: _userFirstName,
+              userLastName: _userLastName,
+              userProfileImageUrl: _userProfileImageUrl,
               messages: _supportMessagesFromApi(map['messages']),
             );
           }),
@@ -1135,6 +1107,24 @@ class GroceryStoreState extends ChangeNotifier {
     await _loadCoupons();
   }
 
+  Future<List<AppUserSummary>> searchUsers(String query) async {
+    if (!isAuthenticated || !isAdmin) {
+      return const [];
+    }
+
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      return const [];
+    }
+
+    final response = await _apiClient.getJson(
+      '/api/auth/users/search',
+      query: {'query': trimmed},
+    );
+    final data = response['data'] as List<dynamic>? ?? [];
+    return data.map(_userSummaryFromApi).toList(growable: false);
+  }
+
   Future<AuthResult> deleteCoupon(int id) async {
     try {
       final response = await _apiClient.deleteJson('/api/coupons/$id');
@@ -1280,6 +1270,9 @@ class GroceryStoreState extends ChangeNotifier {
     return OrderRecord(
       id: data['id']?.toString() ?? '',
       customerEmail: data['customerEmail']?.toString() ?? _userEmail ?? '',
+      customerFirstName: data['customerFirstName']?.toString(),
+      customerLastName: data['customerLastName']?.toString(),
+      customerProfileImageUrl: data['customerProfileImageUrl']?.toString(),
       createdAt:
           DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
           DateTime.now(),
@@ -1316,6 +1309,42 @@ class GroceryStoreState extends ChangeNotifier {
     );
   }
 
+  Coupon _couponFromApi(dynamic raw) {
+    final data = raw as Map<String, dynamic>;
+    return Coupon(
+      id: (data['id'] as num?)?.toInt() ?? 0,
+      code: data['code']?.toString() ?? '',
+      type: data['type']?.toString() ?? 'percent',
+      value: (data['value'] as num?)?.toDouble() ?? 0,
+      isActive: data['isActive'] == true,
+      description: data['description']?.toString(),
+      startsAt: DateTime.tryParse(data['startsAt']?.toString() ?? ''),
+      endsAt: DateTime.tryParse(data['endsAt']?.toString() ?? ''),
+      audience: data['audience']?.toString(),
+      userEmail: data['userEmail']?.toString(),
+      targetUser: _userSummaryFromApiOrNull(data['targetUser']),
+    );
+  }
+
+  AppUserSummary _userSummaryFromApi(dynamic raw) {
+    final data = raw as Map<String, dynamic>;
+    return AppUserSummary(
+      id: (data['id'] as num?)?.toInt() ?? 0,
+      email: data['email']?.toString() ?? '',
+      firstName: data['firstName']?.toString(),
+      lastName: data['lastName']?.toString(),
+      profileImageUrl: data['profileImageUrl']?.toString(),
+      role: data['role']?.toString(),
+    );
+  }
+
+  AppUserSummary? _userSummaryFromApiOrNull(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return null;
+    }
+    return _userSummaryFromApi(raw);
+  }
+
   ProductComment _commentFromApi(dynamic raw) {
     final data = raw as Map<String, dynamic>;
     return ProductComment(
@@ -1349,6 +1378,9 @@ class GroceryStoreState extends ChangeNotifier {
             id: (data['id'] as num?)?.toInt() ?? 0,
             userId: (data['userId'] as num?)?.toInt() ?? 0,
             userEmail: user?['email']?.toString() ?? '',
+            userFirstName: user?['firstName']?.toString(),
+            userLastName: user?['lastName']?.toString(),
+            userProfileImageUrl: user?['profileImageUrl']?.toString(),
             userRole: user?['role']?.toString() ?? 'client',
             message: data['message']?.toString() ?? '',
             createdAt:

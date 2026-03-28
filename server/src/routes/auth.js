@@ -4,7 +4,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 
 import prisma from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -126,6 +126,49 @@ router.post('/login', authLimiter, async (req, res) => {
     return res.json({ token, user: serializeUser(user) });
   } catch (err) {
     console.error('Login failed:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+router.get('/users/search', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const rawQuery = normalizeName(req.query?.query ?? req.query?.q);
+    const terms = rawQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (terms.length === 0) {
+      return res.json({ data: [] });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        role: 'client',
+        AND: terms.map((term) => ({
+          OR: [
+            { email: { contains: term, mode: 'insensitive' } },
+            { firstName: { contains: term, mode: 'insensitive' } },
+            { lastName: { contains: term, mode: 'insensitive' } },
+          ],
+        })),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        profileImageUrl: true,
+        role: true,
+      },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { email: 'asc' }],
+      take: 12,
+    });
+
+    return res.json({ data: users.map(serializeUser) });
+  } catch (err) {
+    console.error('User search failed:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

@@ -99,9 +99,48 @@ class _AddProductPageState extends State<AddProductPage> {
     super.dispose();
   }
 
-  Future<void> _pickAndUpload() async {
+  Future<void> _showImageSourceOptions() async {
+    if (_uploading) {
+      return;
+    }
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose file'),
+                subtitle: const Text('Pick a product photo from this device'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take photo'),
+                subtitle: const Text('Open the camera and capture a new photo'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (source == null || !mounted) {
+      return;
+    }
+
+    await _pickAndUpload(source);
+  }
+
+  Future<void> _pickAndUpload(ImageSource source) async {
     final file = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       maxWidth: 1600,
       imageQuality: 85,
     );
@@ -133,6 +172,16 @@ class _AddProductPageState extends State<AddProductPage> {
         _previewBytes = bytes;
         _imageUrlController.text = uploadedUrl;
       });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to open the selected image source right now.',
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -231,7 +280,7 @@ class _AddProductPageState extends State<AddProductPage> {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: _uploading ? null : _pickAndUpload,
+                    onPressed: _uploading ? null : _showImageSourceOptions,
                     icon: _uploading
                         ? const SizedBox(
                             width: 16,

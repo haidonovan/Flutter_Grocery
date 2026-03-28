@@ -1,11 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import '../utils/csv_export.dart';
+import '../widgets/app_identity_avatar.dart';
 import '../widgets/app_page_route.dart';
 import '../widgets/location_view_page.dart';
 import '../widgets/skeleton.dart';
+import '../widgets/suggestion_search_field.dart';
 
 class OrderManagementPage extends StatefulWidget {
   const OrderManagementPage({super.key, required this.store});
@@ -165,7 +167,9 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
       }
 
       final invoiceMatch = order.id.toLowerCase().contains(query);
-      final customerMatch = order.customerEmail.toLowerCase().contains(query);
+      final customerMatch = order.customerSearchText.toLowerCase().contains(
+        query,
+      );
       final trackingMatch =
           (order.trackingNumber ?? '').toLowerCase().contains(query) ||
           (order.trackingCarrier ?? '').toLowerCase().contains(query) ||
@@ -190,6 +194,30 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
         filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
     return filtered;
+  }
+
+  List<OrderRecord> _orderSuggestions(List<OrderRecord> orders) {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) {
+      return const [];
+    }
+
+    return orders
+        .where((order) {
+          final trackingMatch =
+              (order.trackingNumber ?? '').toLowerCase().contains(query) ||
+              (order.trackingCarrier ?? '').toLowerCase().contains(query) ||
+              (order.trackingStatus ?? '').toLowerCase().contains(query);
+          final productMatch = order.lines.any(
+            (line) => line.productName.toLowerCase().contains(query),
+          );
+          return order.id.toLowerCase().contains(query) ||
+              order.customerSearchText.toLowerCase().contains(query) ||
+              trackingMatch ||
+              productMatch;
+        })
+        .take(8)
+        .toList(growable: false);
   }
 
   Future<void> _showTrackingDialog(
@@ -314,6 +342,7 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
     final rows = <List<String>>[
       [
         'Order ID',
+        'Customer Name',
         'Customer',
         'Status',
         'Created At',
@@ -325,6 +354,7 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
       ...orders.map(
         (order) => [
           order.id,
+          order.customerDisplayName,
           order.customerEmail,
           order.status.name,
           order.createdAt.toIso8601String(),
@@ -370,6 +400,8 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
         }
 
         final filteredOrders = _filteredOrders(widget.store.allOrders);
+        final orderSuggestions = _orderSuggestions(widget.store.allOrders);
+        final hideAdminFileActions = MediaQuery.sizeOf(context).width < 760;
 
         if (widget.store.allOrders.isEmpty) {
           return const Center(child: Text('No orders placed yet.'));
@@ -381,6 +413,7 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
               child: _OrderToolbar(
                 query: _query,
+                suggestions: orderSuggestions,
                 statusFilter: _statusFilter,
                 sort: _sort,
                 dateRange: _dateRange,
@@ -408,11 +441,12 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const Spacer(),
-                  OutlinedButton.icon(
-                    onPressed: () => _exportOrders(filteredOrders),
-                    icon: const Icon(Icons.download_outlined),
-                    label: const Text('Export CSV'),
-                  ),
+                  if (!hideAdminFileActions)
+                    OutlinedButton.icon(
+                      onPressed: () => _exportOrders(filteredOrders),
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Export CSV'),
+                    ),
                 ],
               ),
             ),
@@ -433,9 +467,16 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                         final statusColor = _statusColor(context, order.status);
                         return Card(
                           child: ExpansionTile(
+                            leading: AppIdentityAvatar(
+                              size: 42,
+                              imageUrl: order.customerProfileImageUrl,
+                              initials: order.customerInitials,
+                            ),
                             title: Text(order.id),
                             subtitle: Text(
-                              '${order.customerEmail} | ${_formatDate(order.createdAt)}',
+                              order.customerDisplayName == order.customerEmail
+                                  ? '${order.customerEmail} | ${_formatDate(order.createdAt)}'
+                                  : '${order.customerDisplayName} | ${order.customerEmail} | ${_formatDate(order.createdAt)}',
                             ),
                             trailing: SizedBox(
                               width: 170,
@@ -566,6 +607,16 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                               16,
                             ),
                             children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  order.customerDisplayName ==
+                                          order.customerEmail
+                                      ? 'Customer: ${order.customerEmail}'
+                                      : 'Customer: ${order.customerDisplayName} (${order.customerEmail})',
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
@@ -745,6 +796,7 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
 class _OrderToolbar extends StatelessWidget {
   const _OrderToolbar({
     required this.query,
+    required this.suggestions,
     required this.statusFilter,
     required this.sort,
     required this.dateRange,
@@ -756,6 +808,7 @@ class _OrderToolbar extends StatelessWidget {
   });
 
   final String query;
+  final List<OrderRecord> suggestions;
   final String statusFilter;
   final String sort;
   final DateTimeRange? dateRange;
@@ -769,9 +822,13 @@ class _OrderToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    final search = TextField(
+    final search = SuggestionSearchField<OrderRecord>(
+      value: query,
+      onChanged: onQueryChanged,
+      suggestions: suggestions,
+      selectionTextBuilder: (order) => order.id,
       decoration: InputDecoration(
-        hintText: 'Search invoice, customer, tracking, product',
+        hintText: 'Search invoice, customer name, email, tracking, product',
         prefixIcon: Icon(Icons.search, color: scheme.primary),
         suffixIcon: query.isEmpty
             ? null
@@ -786,7 +843,43 @@ class _OrderToolbar extends StatelessWidget {
           borderSide: BorderSide.none,
         ),
       ),
-      onChanged: onQueryChanged,
+      itemBuilder: (context, order) {
+        return Row(
+          children: [
+            AppIdentityAvatar(
+              size: 38,
+              imageUrl: order.customerProfileImageUrl,
+              initials: order.customerInitials,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    order.customerDisplayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${order.id} | ${order.customerEmail}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
 
     final status = DropdownButtonFormField<String>(

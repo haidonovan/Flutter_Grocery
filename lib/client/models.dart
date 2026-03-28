@@ -112,6 +112,9 @@ class OrderRecord {
   const OrderRecord({
     required this.id,
     required this.customerEmail,
+    required this.customerFirstName,
+    required this.customerLastName,
+    required this.customerProfileImageUrl,
     required this.createdAt,
     required this.shippingAddress,
     required this.shippingLatitude,
@@ -133,6 +136,9 @@ class OrderRecord {
 
   final String id;
   final String customerEmail;
+  final String? customerFirstName;
+  final String? customerLastName;
+  final String? customerProfileImageUrl;
   final DateTime createdAt;
   final String shippingAddress;
   final double? shippingLatitude;
@@ -154,6 +160,41 @@ class OrderRecord {
   bool get hasShippingLocation =>
       shippingLatitude != null && shippingLongitude != null;
 
+  String get customerDisplayName {
+    final parts = [customerFirstName?.trim(), customerLastName?.trim()]
+        .where((value) => value != null && value.isNotEmpty)
+        .cast<String>()
+        .toList(growable: false);
+    if (parts.isNotEmpty) {
+      return parts.join(' ');
+    }
+    return customerEmail;
+  }
+
+  String get customerSearchText {
+    return [
+      customerDisplayName,
+      customerEmail,
+      customerFirstName ?? '',
+      customerLastName ?? '',
+    ].join(' ').trim();
+  }
+
+  String get customerInitials {
+    final source = customerDisplayName.trim();
+    if (source.isEmpty) {
+      return '?';
+    }
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return source.substring(0, 1).toUpperCase();
+  }
+
   String get shippingLocationLabel {
     final trimmed = shippingPlaceLabel?.trim();
     if (trimmed != null && trimmed.isNotEmpty) {
@@ -165,6 +206,9 @@ class OrderRecord {
   OrderRecord copyWith({
     String? id,
     String? customerEmail,
+    String? customerFirstName,
+    String? customerLastName,
+    String? customerProfileImageUrl,
     DateTime? createdAt,
     String? shippingAddress,
     double? shippingLatitude,
@@ -186,6 +230,10 @@ class OrderRecord {
     return OrderRecord(
       id: id ?? this.id,
       customerEmail: customerEmail ?? this.customerEmail,
+      customerFirstName: customerFirstName ?? this.customerFirstName,
+      customerLastName: customerLastName ?? this.customerLastName,
+      customerProfileImageUrl:
+          customerProfileImageUrl ?? this.customerProfileImageUrl,
       createdAt: createdAt ?? this.createdAt,
       shippingAddress: shippingAddress ?? this.shippingAddress,
       shippingLatitude: shippingLatitude ?? this.shippingLatitude,
@@ -207,6 +255,50 @@ class OrderRecord {
   }
 }
 
+class AppUserSummary {
+  const AppUserSummary({
+    required this.id,
+    required this.email,
+    this.firstName,
+    this.lastName,
+    this.profileImageUrl,
+    this.role,
+  });
+
+  final int id;
+  final String email;
+  final String? firstName;
+  final String? lastName;
+  final String? profileImageUrl;
+  final String? role;
+
+  String get displayName {
+    final parts = [firstName?.trim(), lastName?.trim()]
+        .where((value) => value != null && value.isNotEmpty)
+        .cast<String>()
+        .toList(growable: false);
+    if (parts.isNotEmpty) {
+      return parts.join(' ');
+    }
+    return email;
+  }
+
+  String get initials {
+    final source = displayName.trim();
+    if (source.isEmpty) {
+      return '?';
+    }
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return source.substring(0, 1).toUpperCase();
+  }
+}
+
 class Coupon {
   const Coupon({
     required this.id,
@@ -219,6 +311,7 @@ class Coupon {
     required this.endsAt,
     required this.audience,
     required this.userEmail,
+    this.targetUser,
   });
 
   final int id;
@@ -231,12 +324,40 @@ class Coupon {
   final DateTime? endsAt;
   final String? audience;
   final String? userEmail;
+  final AppUserSummary? targetUser;
+
+  bool get isForEveryone => (audience ?? 'all') != 'user';
+
+  String get audienceLabel => isForEveryone ? 'Everyone' : 'Specific user';
+
+  String get targetDisplayName {
+    if (isForEveryone) {
+      return 'Everyone';
+    }
+    return targetUser?.displayName ?? (userEmail?.trim().isNotEmpty == true
+        ? userEmail!.trim()
+        : 'Specific user');
+  }
+
+  String get targetSearchText {
+    return [
+      code,
+      description ?? '',
+      targetDisplayName,
+      userEmail ?? '',
+      targetUser?.firstName ?? '',
+      targetUser?.lastName ?? '',
+    ].join(' ').trim();
+  }
 }
 
 class SupportTicket {
   const SupportTicket({
     required this.id,
     required this.userEmail,
+    this.userFirstName,
+    this.userLastName,
+    this.userProfileImageUrl,
     required this.subject,
     required this.message,
     required this.status,
@@ -249,6 +370,9 @@ class SupportTicket {
 
   final int id;
   final String userEmail;
+  final String? userFirstName;
+  final String? userLastName;
+  final String? userProfileImageUrl;
   final String subject;
   final String message;
   final String status;
@@ -257,6 +381,32 @@ class SupportTicket {
   final DateTime? repliedAt;
   final DateTime? closedAt;
   final List<SupportTicketMessage> messages;
+
+  String get userDisplayName {
+    final parts = [userFirstName?.trim(), userLastName?.trim()]
+        .where((value) => value != null && value.isNotEmpty)
+        .cast<String>()
+        .toList(growable: false);
+    if (parts.isNotEmpty) {
+      return parts.join(' ');
+    }
+    return userEmail;
+  }
+
+  String get userInitials {
+    final source = userDisplayName.trim();
+    if (source.isEmpty) {
+      return '?';
+    }
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return source.substring(0, 1).toUpperCase();
+  }
 }
 
 class SupportTicketMessage {
@@ -264,6 +414,9 @@ class SupportTicketMessage {
     required this.id,
     required this.userId,
     required this.userEmail,
+    this.userFirstName,
+    this.userLastName,
+    this.userProfileImageUrl,
     required this.userRole,
     required this.message,
     required this.createdAt,
@@ -272,9 +425,41 @@ class SupportTicketMessage {
   final int id;
   final int userId;
   final String userEmail;
+  final String? userFirstName;
+  final String? userLastName;
+  final String? userProfileImageUrl;
   final String userRole;
   final String message;
   final DateTime createdAt;
+
+  String get userDisplayName {
+    final parts = [userFirstName?.trim(), userLastName?.trim()]
+        .where((value) => value != null && value.isNotEmpty)
+        .cast<String>()
+        .toList(growable: false);
+    if (parts.isNotEmpty) {
+      return parts.join(' ');
+    }
+    if (userRole == 'admin') {
+      return 'Support team';
+    }
+    return userEmail;
+  }
+
+  String get userInitials {
+    final source = userDisplayName.trim();
+    if (source.isEmpty) {
+      return '?';
+    }
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return source.substring(0, 1).toUpperCase();
+  }
 }
 
 class ProductComment {

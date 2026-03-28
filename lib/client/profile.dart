@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../widgets/coupon_banner.dart';
 import '../widgets/entrance_motion.dart';
+import '../widgets/profile_image_picker.dart';
 import 'models.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -114,10 +115,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _pickProfileImage() async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 88,
-      maxWidth: 1400,
+    final file = await pickProfileImageWithOptions(
+      context,
+      picker: picker,
+      title: 'Update profile photo',
     );
     if (file == null || !mounted) {
       return;
