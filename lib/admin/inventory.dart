@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +8,7 @@ import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import '../utils/csv_export.dart';
 import '../widgets/entrance_motion.dart';
+import '../widgets/suggestion_search_field.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key, required this.store});
@@ -406,6 +407,21 @@ class _InventoryPageState extends State<InventoryPage> {
     }).toList();
   }
 
+  List<Product> _inventorySuggestions(List<Product> products) {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) {
+      return const [];
+    }
+    return products
+        .where((product) {
+          return product.name.toLowerCase().contains(query) ||
+              product.category.toLowerCase().contains(query) ||
+              product.description.toLowerCase().contains(query);
+        })
+        .take(8)
+        .toList(growable: false);
+  }
+
   Future<void> _exportInventory(List<Product> products) async {
     final rows = <List<String>>[
       ['Product ID', 'Name', 'Category', 'Stock', 'Active'],
@@ -443,8 +459,11 @@ class _InventoryPageState extends State<InventoryPage> {
       animation: widget.store,
       builder: (context, _) {
         final products = _filteredProducts(widget.store.allProducts);
+        final inventorySuggestions =
+            _inventorySuggestions(widget.store.allProducts);
         final restocks = _filteredRestocks(widget.store.restockHistory);
         final scheme = Theme.of(context).colorScheme;
+        final hideAdminFileActions = MediaQuery.sizeOf(context).width < 760;
 
         return Column(
           children: [
@@ -453,7 +472,11 @@ class _InventoryPageState extends State<InventoryPage> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 760;
-                  final search = TextField(
+                  final search = SuggestionSearchField<Product>(
+                    value: _query,
+                    onChanged: (value) => setState(() => _query = value),
+                    suggestions: inventorySuggestions,
+                    selectionTextBuilder: (product) => product.name,
                     decoration: InputDecoration(
                       hintText: 'Search product or category',
                       prefixIcon: Icon(Icons.search, color: scheme.primary),
@@ -470,7 +493,34 @@ class _InventoryPageState extends State<InventoryPage> {
                         borderSide: BorderSide.none,
                       ),
                     ),
-                    onChanged: (value) => setState(() => _query = value),
+                    itemBuilder: (context, product) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${product.category} | Stock ${product.stock}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      );
+                    },
                   );
 
                   final stockFilter = DropdownButtonFormField<String>(
@@ -606,17 +656,19 @@ class _InventoryPageState extends State<InventoryPage> {
                     '${products.length} product${products.length == 1 ? '' : 's'}',
                   ),
                   const Spacer(),
-                  OutlinedButton.icon(
-                    onPressed: () => _importInventory(context),
-                    icon: const Icon(Icons.file_upload_outlined),
-                    label: const Text('Import CSV'),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => _exportInventory(products),
-                    icon: const Icon(Icons.download_outlined),
-                    label: const Text('Export CSV'),
-                  ),
+                  if (!hideAdminFileActions) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => _importInventory(context),
+                      icon: const Icon(Icons.file_upload_outlined),
+                      label: const Text('Import CSV'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => _exportInventory(products),
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Export CSV'),
+                    ),
+                  ],
                 ],
               ),
             ),

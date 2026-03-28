@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import 'dashboard.dart';
 import '../utils/csv_export.dart';
 import '../widgets/entrance_motion.dart';
+import '../widgets/suggestion_search_field.dart';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key, required this.store});
@@ -128,6 +129,17 @@ class _SalesReportPageState extends State<SalesReportPage> {
     }).toList();
   }
 
+  List<String> _topProductSuggestions(Map<String, int> productSales) {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) {
+      return const [];
+    }
+    return productSales.keys
+        .where((name) => name.toLowerCase().contains(query))
+        .take(8)
+        .toList(growable: false);
+  }
+
   Future<void> _exportSales(
     List<MapEntry<String, int>> topProducts,
     List<OrderRecord> orders,
@@ -169,6 +181,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, _) {
+        final hideAdminFileActions = MediaQuery.sizeOf(context).width < 760;
         final filteredOrders = _filteredOrders(widget.store.allOrders);
         final range = _rangeConfig();
         final deliveredCount = widget.store.allOrders
@@ -198,6 +211,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
                 )
                 .toList()
               ..sort((a, b) => b.value.compareTo(a.value));
+        final topProductSuggestions = _topProductSuggestions(productSales);
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -245,11 +259,12 @@ class _SalesReportPageState extends State<SalesReportPage> {
                   '${filteredOrders.length} order${filteredOrders.length == 1 ? '' : 's'} in range',
                 ),
                 const Spacer(),
-                OutlinedButton.icon(
-                  onPressed: () => _exportSales(topProducts, filteredOrders),
-                  icon: const Icon(Icons.download_outlined),
-                  label: const Text('Export CSV'),
-                ),
+                if (!hideAdminFileActions)
+                  OutlinedButton.icon(
+                    onPressed: () => _exportSales(topProducts, filteredOrders),
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Export CSV'),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -281,7 +296,11 @@ class _SalesReportPageState extends State<SalesReportPage> {
               ),
             ),
             const SizedBox(height: 14),
-            TextField(
+            SuggestionSearchField<String>(
+              value: _query,
+              onChanged: (value) => setState(() => _query = value),
+              suggestions: topProductSuggestions,
+              selectionTextBuilder: (value) => value,
               decoration: InputDecoration(
                 hintText: 'Search top-selling product',
                 prefixIcon: const Icon(Icons.search),
@@ -297,7 +316,14 @@ class _SalesReportPageState extends State<SalesReportPage> {
                   borderSide: BorderSide.none,
                 ),
               ),
-              onChanged: (value) => setState(() => _query = value),
+              itemBuilder: (context, value) {
+                return Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                );
+              },
             ),
             const SizedBox(height: 14),
             Text(

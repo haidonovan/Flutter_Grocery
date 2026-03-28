@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth/auth.dart';
 import 'store/grocery_store_state.dart';
+import 'widgets/app_loading_state.dart';
 
 enum AppThemeStyle { classic, golden, pink }
 
@@ -38,7 +39,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   static const String _themePrefKey = 'theme_mode';
   static const String _themeStylePrefKey = 'theme_style';
 
-  late final Future<GroceryStoreState> _storeFuture;
+  late final Future<_AppBootstrapState> _storeFuture;
   ThemeMode _themeMode = ThemeMode.system;
   AppThemeStyle _themeStyle = AppThemeStyle.classic;
   late final AnimationController _themeBlastController;
@@ -53,10 +54,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _storeFuture = GroceryStoreState.create(
-      baseUrl: _resolveApiBaseUrl(),
-      fallbackBaseUrl: _resolveApiFallbackBaseUrl(),
-    );
+    _storeFuture = _bootstrapStore();
     _themeBlastController =
         AnimationController(
             vsync: this,
@@ -65,6 +63,17 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
           ..addListener(_handleThemeBlastTick)
           ..addStatusListener(_handleThemeBlastStatus);
     _loadThemeMode();
+  }
+
+  Future<_AppBootstrapState> _bootstrapStore() async {
+    final paceFuture = Future<void>.delayed(const Duration(milliseconds: 2800));
+    final storeFuture = GroceryStoreState.create(
+      baseUrl: _resolveApiBaseUrl(),
+      fallbackBaseUrl: _resolveApiFallbackBaseUrl(),
+    );
+    final store = await storeFuture;
+    await paceFuture;
+    return _AppBootstrapState(store: store);
   }
 
   String _resolveApiBaseUrl() {
@@ -479,7 +488,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Grocery Store',
+      title: 'Fresh Mart',
       theme: _buildTheme(Brightness.light, _themeStyle),
       darkTheme: _buildTheme(Brightness.dark, _themeStyle),
       themeMode: _themeMode,
@@ -508,12 +517,22 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
           ],
         );
       },
-      home: FutureBuilder<GroceryStoreState>(
+      home: FutureBuilder<_AppBootstrapState>(
         future: _storeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: AppLoadingStatusView(
+                headline: 'Loading Fresh Mart',
+                subheading:
+                    'We are reaching the server and preparing the latest store data for you.',
+                messages: [
+                  'Reaching the server',
+                  'Checking your session',
+                  'Loading products and categories',
+                  'Preparing your workspace',
+                ],
+              ),
             );
           }
 
@@ -524,7 +543,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
           }
 
           return AuthGate(
-            store: snapshot.data!,
+            store: snapshot.data!.store,
             themeMode: _themeMode,
             themeStyle: _themeStyle,
             onThemeModeChanged: _setThemeMode,
@@ -535,6 +554,12 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
       ),
     );
   }
+}
+
+class _AppBootstrapState {
+  const _AppBootstrapState({required this.store});
+
+  final GroceryStoreState store;
 }
 
 class _ThemeBlastOverlay extends StatelessWidget {

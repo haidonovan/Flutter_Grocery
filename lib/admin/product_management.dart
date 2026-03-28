@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import '../utils/csv_export.dart';
+import '../widgets/suggestion_search_field.dart';
 import '../widgets/app_page_route.dart';
 import '../widgets/entrance_motion.dart';
 import 'add_product.dart';
@@ -575,6 +576,22 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
     }
   }
 
+  List<Product> _productSuggestions(List<Product> products) {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) {
+      return const [];
+    }
+    return products
+        .where((product) {
+          return product.name.toLowerCase().contains(query) ||
+              product.category.toLowerCase().contains(query) ||
+              product.description.toLowerCase().contains(query) ||
+              product.id.toLowerCase().contains(query);
+        })
+        .take(8)
+        .toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -586,12 +603,14 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
         }
 
         final categories = _categories(widget.store.categories);
+        final productSuggestions = _productSuggestions(widget.store.allProducts);
         final products = _selectedCategory == 'All'
             ? widget.store.allProducts
             : widget.store.allProducts
                   .where((product) => product.category == _selectedCategory)
                   .toList();
         final sortedProducts = _sortProducts(_filterProducts([...products]));
+        final hideAdminFileActions = MediaQuery.sizeOf(context).width < 760;
 
         return Scaffold(
           body: Column(
@@ -616,7 +635,15 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                           ],
                         ),
                       ),
-                      child: TextField(
+                      child: SuggestionSearchField<Product>(
+                        value: _query,
+                        onChanged: (value) {
+                          setState(() {
+                            _query = value;
+                          });
+                        },
+                        suggestions: productSuggestions,
+                        selectionTextBuilder: (product) => product.name,
                         decoration: InputDecoration(
                           hintText:
                               'Search product name, category, description, ID',
@@ -648,10 +675,33 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             ),
                           ),
                         ),
-                        onChanged: (value) {
-                          setState(() {
-                            _query = value;
-                          });
+                        itemBuilder: (context, product) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${product.category} | ${product.id}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          );
                         },
                       ),
                     );
@@ -791,11 +841,12 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                       ),
                     ],
                     const Spacer(),
-                    OutlinedButton.icon(
-                      onPressed: () => _exportProducts(sortedProducts),
-                      icon: const Icon(Icons.download_outlined),
-                      label: const Text('Export CSV'),
-                    ),
+                    if (!hideAdminFileActions)
+                      OutlinedButton.icon(
+                        onPressed: () => _exportProducts(sortedProducts),
+                        icon: const Icon(Icons.download_outlined),
+                        label: const Text('Export CSV'),
+                      ),
                   ],
                 ),
               ),
@@ -853,31 +904,70 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final compact = constraints.maxWidth < 620;
+                                  final imageSize = compact ? 88.0 : 112.0;
+                                  final rowHeight = compact ? 124.0 : 138.0;
+                                  final theme = Theme.of(context);
+                                  final scheme = theme.colorScheme;
 
-                                  final image = CircleAvatar(
-                                    radius: 24,
-                                    backgroundImage: NetworkImage(
-                                      product.imageUrl,
-                                    ),
-                                  );
+                                  Widget buildImage() {
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: Container(
+                                        width: imageSize,
+                                        height: rowHeight,
+                                        color: scheme.surfaceContainerHighest,
+                                        child: Image.network(
+                                          product.imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Icon(
+                                                  Icons.image_not_supported_outlined,
+                                                  color: scheme.onSurfaceVariant,
+                                                  size: compact ? 28 : 34,
+                                                );
+                                              },
+                                        ),
+                                      ),
+                                    );
+                                  }
 
-                                  final details = Column(
+                                  final priceLabel = product.discountPercent > 0
+                                      ? '\$${product.discountedPrice.toStringAsFixed(2)} (${product.discountPercent.toStringAsFixed(0)}% off)'
+                                      : '\$${product.price.toStringAsFixed(2)}';
+
+                                  final detailBlock = Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
                                         product.name,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleSmall,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        product.category,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: scheme.onSurfaceVariant,
+                                            ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        product.discountPercent > 0
-                                            ? '${product.category} - \$${product.discountedPrice.toStringAsFixed(2)} (${product.discountPercent.toStringAsFixed(0)}% off)'
-                                            : '${product.category} - \$${product.price.toStringAsFixed(2)}',
+                                        priceLabel,
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
+                                              color: scheme.primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 8),
                                       Wrap(
                                         spacing: 8,
                                         runSpacing: 6,
@@ -885,123 +975,116 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                           _ProductChip(
                                             label: 'Stock ${product.stock}',
                                             color: product.stock <= 5
-                                                ? Theme.of(
-                                                    context,
-                                                  ).colorScheme.errorContainer
-                                                : Theme.of(context)
-                                                      .colorScheme
-                                                      .secondaryContainer,
+                                                ? scheme.errorContainer
+                                                : scheme.secondaryContainer,
                                             foreground: product.stock <= 5
-                                                ? Theme.of(
-                                                    context,
-                                                  ).colorScheme.onErrorContainer
-                                                : Theme.of(context)
-                                                      .colorScheme
-                                                      .onSecondaryContainer,
+                                                ? scheme.onErrorContainer
+                                                : scheme.onSecondaryContainer,
                                           ),
                                           _ProductChip(
                                             label: product.isActive
                                                 ? 'Active'
                                                 : 'Hidden',
                                             color: product.isActive
-                                                ? Theme.of(
-                                                    context,
-                                                  ).colorScheme.primaryContainer
-                                                : Theme.of(context)
-                                                      .colorScheme
+                                                ? scheme.primaryContainer
+                                                : scheme
                                                       .surfaceContainerHighest,
                                             foreground: product.isActive
-                                                ? Theme.of(context)
-                                                      .colorScheme
-                                                      .onPrimaryContainer
-                                                : Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
+                                                ? scheme.onPrimaryContainer
+                                                : scheme.onSurfaceVariant,
                                           ),
                                         ],
                                       ),
                                     ],
                                   );
 
-                                  final actions = Wrap(
-                                    spacing: 4,
-                                    runSpacing: 4,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      _ProductStatusToggle(
-                                        value: product.isActive,
-                                        busy: _togglingProductIds.contains(
-                                          product.id,
-                                        ),
-                                        onChanged: (value) async {
-                                          await _toggleProductStatus(
-                                            product,
-                                            value,
-                                          );
-                                        },
+                                  final groupOne = Expanded(
+                                    child: SizedBox(
+                                      height: rowHeight,
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          buildImage(),
+                                          const SizedBox(width: 14),
+                                          Expanded(child: detailBlock),
+                                        ],
                                       ),
-                                      IconButton(
-                                        onPressed: () =>
-                                            _editProduct(context, product),
-                                        icon: const Icon(Icons.edit_outlined),
-                                      ),
-                                      if (_deletingProductIds.contains(
-                                        product.id,
-                                      ))
-                                        const SizedBox(
-                                          width: 40,
-                                          height: 40,
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8),
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.2,
-                                            ),
-                                          ),
-                                        )
-                                      else
-                                        IconButton(
-                                          onPressed: () =>
-                                              _deleteProduct(context, product),
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                          ),
-                                        ),
-                                    ],
+                                    ),
                                   );
 
-                                  if (compact) {
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            image,
-                                            const SizedBox(width: 12),
-                                            Expanded(child: details),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Align(
-                                          alignment: Alignment.centerRight,
-                                          child: actions,
-                                        ),
-                                      ],
-                                    );
-                                  }
+                                  final groupTwo = SizedBox(
+                                    height: rowHeight,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minWidth: compact ? 88 : 104,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _ProductStatusToggle(
+                                            value: product.isActive,
+                                            busy: _togglingProductIds.contains(
+                                              product.id,
+                                            ),
+                                            onChanged: (value) async {
+                                              await _toggleProductStatus(
+                                                product,
+                                                value,
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                          IconButton(
+                                            onPressed: () => _editProduct(
+                                              context,
+                                              product,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.edit_outlined,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          if (_deletingProductIds.contains(
+                                            product.id,
+                                          ))
+                                            const SizedBox(
+                                              width: 40,
+                                              height: 40,
+                                              child: Padding(
+                                                padding: EdgeInsets.all(8),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2.2,
+                                                    ),
+                                              ),
+                                            )
+                                          else
+                                            IconButton(
+                                              onPressed: () => _deleteProduct(
+                                                context,
+                                                product,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
 
                                   return Row(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        CrossAxisAlignment.center,
                                     children: [
-                                      image,
+                                      groupOne,
                                       const SizedBox(width: 12),
-                                      Expanded(child: details),
-                                      const SizedBox(width: 12),
-                                      actions,
+                                      groupTwo,
                                     ],
                                   );
                                 },
@@ -1017,13 +1100,15 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              FloatingActionButton.extended(
-                heroTag: 'import_products',
-                onPressed: () => _importProducts(context),
-                icon: const Icon(Icons.file_upload_outlined),
-                label: const Text('Import CSV'),
-              ),
-              const SizedBox(height: 12),
+              if (!hideAdminFileActions) ...[
+                FloatingActionButton.extended(
+                  heroTag: 'import_products',
+                  onPressed: () => _importProducts(context),
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: const Text('Import CSV'),
+                ),
+                const SizedBox(height: 12),
+              ],
               FloatingActionButton.extended(
                 heroTag: 'add_product',
                 onPressed: () => _addProduct(context),

@@ -7,6 +7,7 @@ import '../client/product_list.dart';
 import '../main.dart';
 import '../store/grocery_store_state.dart';
 import '../widgets/app_page_route.dart';
+import '../widgets/app_loading_state.dart';
 import '../widgets/entrance_motion.dart';
 import '../widgets/theme_mode_menu.dart';
 import 'login.dart';
@@ -40,6 +41,10 @@ class _AuthGateState extends State<AuthGate> {
   bool _showRegister = false;
   _RoleTab _roleTab = _RoleTab.client;
   bool _showPublicShop = true;
+  bool _authOverlayVisible = false;
+  _RoleTab? _activeLoadingRoleTab;
+  bool _activeLoadingShowRegister = false;
+  DateTime? _authOverlayStartedAt;
   static const bool _showAdminTab = bool.fromEnvironment(
     'SHOW_ADMIN',
     defaultValue: true,
@@ -54,10 +59,14 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _handleClientLogin(String email, String password) async {
-    final result = await widget.store.login(
-      email: email,
-      password: password,
-      requireAdmin: false,
+    final result = await _runAuthFlow(
+      roleTab: _RoleTab.client,
+      showRegister: false,
+      action: () => widget.store.login(
+        email: email,
+        password: password,
+        requireAdmin: false,
+      ),
     );
 
     if (!mounted || result.success) {
@@ -75,11 +84,15 @@ class _AuthGateState extends State<AuthGate> {
     String email,
     String password,
   ) async {
-    final result = await widget.store.register(
-      firstName: firstName,
-      lastName: lastName,
-      email: email,
-      password: password,
+    final result = await _runAuthFlow(
+      roleTab: _RoleTab.client,
+      showRegister: true,
+      action: () => widget.store.register(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        password: password,
+      ),
     );
 
     if (!mounted || result.success) {
@@ -92,10 +105,14 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _handleAdminLogin(String email, String password) async {
-    final result = await widget.store.login(
-      email: email,
-      password: password,
-      requireAdmin: true,
+    final result = await _runAuthFlow(
+      roleTab: _RoleTab.admin,
+      showRegister: false,
+      action: () => widget.store.login(
+        email: email,
+        password: password,
+        requireAdmin: true,
+      ),
     );
 
     if (!mounted || result.success) {
@@ -144,6 +161,119 @@ class _AuthGateState extends State<AuthGate> {
         ),
       ),
     );
+  }
+
+  _RoleTab get _loadingRoleTab => _activeLoadingRoleTab ?? _roleTab;
+
+  bool get _loadingShowRegister => _authOverlayVisible
+      ? _activeLoadingShowRegister
+      : _showRegister;
+
+  Duration get _minimumAuthOverlayDuration {
+    if (_loadingRoleTab == _RoleTab.admin) {
+      return const Duration(milliseconds: 2800);
+    }
+    if (_loadingShowRegister) {
+      return const Duration(milliseconds: 2200);
+    }
+    return const Duration(milliseconds: 1800);
+  }
+
+  void _beginAuthFlowOverlay({
+    required _RoleTab roleTab,
+    required bool showRegister,
+  }) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _authOverlayVisible = true;
+      _activeLoadingRoleTab = roleTab;
+      _activeLoadingShowRegister = showRegister;
+      _authOverlayStartedAt = DateTime.now();
+    });
+  }
+
+  Future<void> _finishAuthFlowOverlay() async {
+    final startedAt = _authOverlayStartedAt;
+    if (startedAt != null) {
+      final elapsed = DateTime.now().difference(startedAt);
+      final remaining = _minimumAuthOverlayDuration - elapsed;
+      if (remaining > Duration.zero) {
+        await Future<void>.delayed(remaining);
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _authOverlayVisible = false;
+      _activeLoadingRoleTab = null;
+      _activeLoadingShowRegister = false;
+      _authOverlayStartedAt = null;
+    });
+  }
+
+  Future<AuthResult> _runAuthFlow({
+    required _RoleTab roleTab,
+    required bool showRegister,
+    required Future<AuthResult> Function() action,
+  }) async {
+    _beginAuthFlowOverlay(roleTab: roleTab, showRegister: showRegister);
+    try {
+      return await action();
+    } finally {
+      await _finishAuthFlowOverlay();
+    }
+  }
+
+  String get _authLoadingHeadline {
+    if (_loadingRoleTab == _RoleTab.admin) {
+      return 'Opening admin workspace';
+    }
+    if (_loadingShowRegister) {
+      return 'Creating your account';
+    }
+    return 'Signing you in';
+  }
+
+  String get _authLoadingSubheading {
+    if (_loadingRoleTab == _RoleTab.admin) {
+      return 'We are keeping the admin workspace closed until products, orders, support, and dashboard metrics are ready.';
+    }
+    if (_loadingShowRegister) {
+      return 'We are creating your profile and loading your customer workspace.';
+    }
+    return 'We are checking your account and preparing the latest store data.';
+  }
+
+  List<String> get _authLoadingMessages {
+    if (_loadingRoleTab == _RoleTab.admin) {
+      return const [
+        'Reaching the server',
+        'Verifying admin access',
+        'Loading products and stock data',
+        'Loading orders and invoices',
+        'Loading coupons and support',
+        'Preparing the dashboard',
+      ];
+    }
+    if (_loadingShowRegister) {
+      return const [
+        'Reaching the server',
+        'Creating your account',
+        'Loading your storefront data',
+        'Preparing your workspace',
+      ];
+    }
+    return const [
+      'Reaching the server',
+      'Checking your account',
+      'Loading products and favorites',
+      'Preparing your workspace',
+    ];
   }
 
   @override
@@ -407,21 +537,38 @@ class _AuthGateState extends State<AuthGate> {
               : 'client-login';
         }
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 480),
-          reverseDuration: const Duration(milliseconds: 420),
-          switchInCurve: Curves.easeInOutCubic,
-          switchOutCurve: Curves.easeInOutCubic,
-          layoutBuilder: (currentChild, previousChildren) => Stack(
-            fit: StackFit.expand,
-            children: [
-              ...previousChildren,
-              if (currentChild != null) currentChild,
-            ],
-          ),
-          transitionBuilder: (child, animation) =>
-              _buildAuthTransition(child, animation),
-          child: KeyedSubtree(key: ValueKey(childKey), child: child),
+        final showAuthOverlay =
+            _authOverlayVisible ||
+            (widget.store.isLoading && !widget.store.isAuthenticated);
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 480),
+              reverseDuration: const Duration(milliseconds: 420),
+              switchInCurve: Curves.easeInOutCubic,
+              switchOutCurve: Curves.easeInOutCubic,
+              layoutBuilder: (currentChild, previousChildren) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ],
+              ),
+              transitionBuilder: (child, animation) =>
+                  _buildAuthTransition(child, animation),
+              child: KeyedSubtree(key: ValueKey(childKey), child: child),
+            ),
+            if (showAuthOverlay)
+              IgnorePointer(
+                child: AppLoadingStatusOverlay(
+                  headline: _authLoadingHeadline,
+                  subheading: _authLoadingSubheading,
+                  messages: _authLoadingMessages,
+                ),
+              ),
+          ],
         );
       },
     );
