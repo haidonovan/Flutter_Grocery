@@ -114,6 +114,9 @@ class OrderRecord {
     required this.customerEmail,
     required this.createdAt,
     required this.shippingAddress,
+    required this.shippingLatitude,
+    required this.shippingLongitude,
+    required this.shippingPlaceLabel,
     required this.paymentMethod,
     required this.lines,
     required this.total,
@@ -132,6 +135,9 @@ class OrderRecord {
   final String customerEmail;
   final DateTime createdAt;
   final String shippingAddress;
+  final double? shippingLatitude;
+  final double? shippingLongitude;
+  final String? shippingPlaceLabel;
   final String paymentMethod;
   final List<OrderLine> lines;
   final double total;
@@ -145,11 +151,25 @@ class OrderRecord {
   final double? couponValue;
   final double? couponDiscount;
 
+  bool get hasShippingLocation =>
+      shippingLatitude != null && shippingLongitude != null;
+
+  String get shippingLocationLabel {
+    final trimmed = shippingPlaceLabel?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    return shippingAddress;
+  }
+
   OrderRecord copyWith({
     String? id,
     String? customerEmail,
     DateTime? createdAt,
     String? shippingAddress,
+    double? shippingLatitude,
+    double? shippingLongitude,
+    String? shippingPlaceLabel,
     String? paymentMethod,
     List<OrderLine>? lines,
     double? total,
@@ -168,6 +188,9 @@ class OrderRecord {
       customerEmail: customerEmail ?? this.customerEmail,
       createdAt: createdAt ?? this.createdAt,
       shippingAddress: shippingAddress ?? this.shippingAddress,
+      shippingLatitude: shippingLatitude ?? this.shippingLatitude,
+      shippingLongitude: shippingLongitude ?? this.shippingLongitude,
+      shippingPlaceLabel: shippingPlaceLabel ?? this.shippingPlaceLabel,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       lines: lines ?? this.lines,
       total: total ?? this.total,
@@ -260,6 +283,9 @@ class ProductComment {
     required this.productId,
     required this.userId,
     required this.userEmail,
+    this.userFirstName,
+    this.userLastName,
+    this.userProfileImageUrl,
     required this.message,
     required this.createdAt,
     required this.updatedAt,
@@ -269,11 +295,40 @@ class ProductComment {
   final String productId;
   final int userId;
   final String userEmail;
+  final String? userFirstName;
+  final String? userLastName;
+  final String? userProfileImageUrl;
   final String message;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   bool get isEdited => updatedAt.isAfter(createdAt);
+
+  String get userDisplayName {
+    final parts = [userFirstName?.trim(), userLastName?.trim()]
+        .where((value) => value != null && value.isNotEmpty)
+        .cast<String>()
+        .toList(growable: false);
+    if (parts.isNotEmpty) {
+      return parts.join(' ');
+    }
+    return userEmail;
+  }
+
+  String get userInitials {
+    final source = userDisplayName.trim();
+    if (source.isEmpty) {
+      return '?';
+    }
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return source.substring(0, 1).toUpperCase();
+  }
 }
 
 class RestockRecord {

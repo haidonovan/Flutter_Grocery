@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
@@ -495,14 +495,14 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Coupons CSV downloaded.'
-              : 'CSV export is available on web builds.',
+        SnackBar(
+          content: Text(
+            success
+                ? csvExportSuccessMessage('Coupons')
+                : csvExportFailureMessage(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   @override
@@ -733,7 +733,7 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
                     return Card(
                       child: ListTile(
                         title: Text(coupon.code),
-                        subtitle: Text('$valueLabel • $expiry'),
+                        subtitle: Text('$valueLabel â€¢ $expiry'),
                         trailing: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
@@ -790,3 +790,5 @@ class _CouponManagementPageState extends State<CouponManagementPage> {
     );
   }
 }
+
+

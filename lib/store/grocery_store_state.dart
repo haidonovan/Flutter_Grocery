@@ -35,6 +35,9 @@ class GroceryStoreState extends ChangeNotifier {
   static const String _tokenKey = 'api_token';
   static const String _userIdKey = 'api_user_id';
   static const String _userEmailKey = 'api_user_email';
+  static const String _userFirstNameKey = 'api_user_first_name';
+  static const String _userLastNameKey = 'api_user_last_name';
+  static const String _userProfileImageUrlKey = 'api_user_profile_image_url';
   static const String _userRoleKey = 'api_user_role';
 
   static Future<GroceryStoreState> create({
@@ -80,6 +83,9 @@ class GroceryStoreState extends ChangeNotifier {
   String? _token;
   int? _userId;
   String? _userEmail;
+  String? _userFirstName;
+  String? _userLastName;
+  String? _userProfileImageUrl;
   String? _role;
 
   bool get isLoading => _isLoading;
@@ -93,6 +99,21 @@ class GroceryStoreState extends ChangeNotifier {
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
   bool get isAdmin => _role == 'admin';
   String get userEmail => _userEmail ?? '';
+  String get userFirstName => _userFirstName?.trim() ?? '';
+  String get userLastName => _userLastName?.trim() ?? '';
+  String? get userProfileImageUrl => _userProfileImageUrl;
+  String get userDisplayName {
+    final parts = [userFirstName, userLastName]
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isNotEmpty) {
+      return parts.join(' ');
+    }
+    if (userEmail.isNotEmpty) {
+      return userEmail;
+    }
+    return 'Client';
+  }
   int? get userId => _userId;
 
   List<Product> get allProducts => List.unmodifiable(_products);
@@ -246,6 +267,9 @@ class GroceryStoreState extends ChangeNotifier {
         token: token,
         userId: (user['id'] as num).toInt(),
         email: user['email']?.toString() ?? email,
+        firstName: user['firstName']?.toString(),
+        lastName: user['lastName']?.toString(),
+        profileImageUrl: user['profileImageUrl']?.toString(),
         role: role,
       );
 
@@ -264,12 +288,16 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<AuthResult> register({
+    required String firstName,
+    required String lastName,
     required String email,
     required String password,
   }) async {
     _setLoading(true);
     try {
       final response = await _apiClient.postJson('/api/auth/register', {
+        'firstName': firstName,
+        'lastName': lastName,
         'email': email,
         'password': password,
       });
@@ -287,6 +315,9 @@ class GroceryStoreState extends ChangeNotifier {
         token: token,
         userId: (user['id'] as num).toInt(),
         email: user['email']?.toString() ?? email,
+        firstName: user['firstName']?.toString(),
+        lastName: user['lastName']?.toString(),
+        profileImageUrl: user['profileImageUrl']?.toString(),
         role: user['role']?.toString() ?? 'client',
       );
 
@@ -314,6 +345,9 @@ class GroceryStoreState extends ChangeNotifier {
     _token = null;
     _userId = null;
     _userEmail = null;
+    _userFirstName = null;
+    _userLastName = null;
+    _userProfileImageUrl = null;
     _role = null;
     _apiClient.token = null;
     _cart.clear();
@@ -332,6 +366,9 @@ class GroceryStoreState extends ChangeNotifier {
     await prefs.remove(_tokenKey);
     await prefs.remove(_userIdKey);
     await prefs.remove(_userEmailKey);
+    await prefs.remove(_userFirstNameKey);
+    await prefs.remove(_userLastNameKey);
+    await prefs.remove(_userProfileImageUrlKey);
     await prefs.remove(_userRoleKey);
   }
 
@@ -724,6 +761,9 @@ class GroceryStoreState extends ChangeNotifier {
     required String shippingAddress,
     required String paymentMethod,
     String? couponCode,
+    double? shippingLatitude,
+    double? shippingLongitude,
+    String? shippingPlaceLabel,
   }) async {
     if (_cart.isEmpty) {
       return const PlaceOrderResult(success: false, message: 'Cart is empty.');
@@ -747,6 +787,9 @@ class GroceryStoreState extends ChangeNotifier {
         'paymentMethod': paymentMethod,
         'lines': lines,
         'couponCode': couponCode,
+        'shippingLatitude': shippingLatitude,
+        'shippingLongitude': shippingLongitude,
+        'shippingPlaceLabel': shippingPlaceLabel,
       });
 
       final createdOrder = _orderFromApi(response);
@@ -1137,6 +1180,54 @@ class GroceryStoreState extends ChangeNotifier {
     }
   }
 
+  Future<String?> uploadProfileImage(XFile file) async {
+    if (!isAuthenticated || _token == null || _userId == null) {
+      _setError('Login is required before uploading a profile image.');
+      return null;
+    }
+
+    _setLoading(true);
+    try {
+      final response = await _apiClient.uploadImage('/api/uploads/profile', file);
+      final url = response['url']?.toString();
+      final user = response['user'] as Map<String, dynamic>?;
+      if (user != null) {
+        await _saveSession(
+          token: _token!,
+          userId: (user['id'] as num?)?.toInt() ?? _userId!,
+          email: user['email']?.toString() ?? userEmail,
+          firstName: user['firstName']?.toString() ?? userFirstName,
+          lastName: user['lastName']?.toString() ?? userLastName,
+          profileImageUrl:
+              user['profileImageUrl']?.toString() ?? _userProfileImageUrl,
+          role: user['role']?.toString() ?? _role ?? 'client',
+        );
+      } else if (url != null && url.isNotEmpty) {
+        await _saveSession(
+          token: _token!,
+          userId: _userId!,
+          email: userEmail,
+          firstName: userFirstName,
+          lastName: userLastName,
+          profileImageUrl: url,
+          role: _role ?? 'client',
+        );
+      }
+
+      final finalUrl = user?['profileImageUrl']?.toString() ?? url;
+      notifyListeners();
+      return finalUrl;
+    } on ApiException catch (err) {
+      _setError(err.message);
+      return null;
+    } catch (_) {
+      _setError('Profile image upload failed.');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Product _productFromApi(dynamic raw) {
     final data = raw as Map<String, dynamic>;
     return Product(
@@ -1193,6 +1284,9 @@ class GroceryStoreState extends ChangeNotifier {
           DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
           DateTime.now(),
       shippingAddress: data['shippingAddress']?.toString() ?? '',
+      shippingLatitude: (data['shippingLatitude'] as num?)?.toDouble(),
+      shippingLongitude: (data['shippingLongitude'] as num?)?.toDouble(),
+      shippingPlaceLabel: data['shippingPlaceLabel']?.toString(),
       paymentMethod: data['paymentMethod']?.toString() ?? '',
       lines: [],
       total: (data['total'] as num?)?.toDouble() ?? 0,
@@ -1229,6 +1323,9 @@ class GroceryStoreState extends ChangeNotifier {
       productId: data['productId']?.toString() ?? '',
       userId: (data['userId'] as num?)?.toInt() ?? 0,
       userEmail: data['userEmail']?.toString() ?? '',
+      userFirstName: data['userFirstName']?.toString(),
+      userLastName: data['userLastName']?.toString(),
+      userProfileImageUrl: data['userProfileImageUrl']?.toString(),
       message: data['message']?.toString() ?? '',
       createdAt:
           DateTime.tryParse(data['createdAt']?.toString() ?? '') ??
@@ -1267,6 +1364,9 @@ class GroceryStoreState extends ChangeNotifier {
     _token = prefs.getString(_tokenKey);
     _userId = prefs.getInt(_userIdKey);
     _userEmail = prefs.getString(_userEmailKey);
+    _userFirstName = prefs.getString(_userFirstNameKey);
+    _userLastName = prefs.getString(_userLastNameKey);
+    _userProfileImageUrl = prefs.getString(_userProfileImageUrlKey);
     _role = prefs.getString(_userRoleKey);
     _apiClient.token = _token;
   }
@@ -1286,11 +1386,18 @@ class GroceryStoreState extends ChangeNotifier {
 
       _userId = (user['id'] as num?)?.toInt() ?? _userId;
       _userEmail = user['email']?.toString() ?? _userEmail;
+      _userFirstName = user['firstName']?.toString() ?? _userFirstName;
+      _userLastName = user['lastName']?.toString() ?? _userLastName;
+      _userProfileImageUrl =
+          user['profileImageUrl']?.toString() ?? _userProfileImageUrl;
       _role = user['role']?.toString() ?? _role;
       await _saveSession(
         token: _token!,
         userId: _userId ?? 0,
         email: _userEmail ?? '',
+        firstName: _userFirstName,
+        lastName: _userLastName,
+        profileImageUrl: _userProfileImageUrl,
         role: _role ?? 'client',
       );
     } on ApiException catch (err) {
@@ -1306,11 +1413,23 @@ class GroceryStoreState extends ChangeNotifier {
     required String token,
     required int userId,
     required String email,
+    String? firstName,
+    String? lastName,
+    String? profileImageUrl,
     required String role,
   }) async {
     _token = token;
     _userId = userId;
     _userEmail = email;
+    _userFirstName = firstName?.trim().isNotEmpty == true
+        ? firstName!.trim()
+        : null;
+    _userLastName = lastName?.trim().isNotEmpty == true
+        ? lastName!.trim()
+        : null;
+    _userProfileImageUrl = profileImageUrl?.trim().isNotEmpty == true
+        ? profileImageUrl!.trim()
+        : null;
     _role = role;
     _apiClient.token = token;
 
@@ -1318,6 +1437,21 @@ class GroceryStoreState extends ChangeNotifier {
     await prefs.setString(_tokenKey, token);
     await prefs.setInt(_userIdKey, userId);
     await prefs.setString(_userEmailKey, email);
+    if (_userFirstName != null) {
+      await prefs.setString(_userFirstNameKey, _userFirstName!);
+    } else {
+      await prefs.remove(_userFirstNameKey);
+    }
+    if (_userLastName != null) {
+      await prefs.setString(_userLastNameKey, _userLastName!);
+    } else {
+      await prefs.remove(_userLastNameKey);
+    }
+    if (_userProfileImageUrl != null) {
+      await prefs.setString(_userProfileImageUrlKey, _userProfileImageUrl!);
+    } else {
+      await prefs.remove(_userProfileImageUrlKey);
+    }
     await prefs.setString(_userRoleKey, role);
   }
 

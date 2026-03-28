@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
@@ -154,14 +154,14 @@ class _SalesReportPageState extends State<SalesReportPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Sales CSV downloaded.'
-              : 'CSV export is available on web builds.',
+        SnackBar(
+          content: Text(
+            success
+                ? csvExportSuccessMessage('Sales')
+                : csvExportFailureMessage(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   @override
@@ -369,3 +369,5 @@ class _SalesChartCard extends StatelessWidget {
     );
   }
 }
+
+

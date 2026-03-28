@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../widgets/coupon_banner.dart';
 import '../widgets/entrance_motion.dart';
@@ -8,9 +9,12 @@ import 'models.dart';
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
+    required this.userDisplayName,
     required this.userEmail,
+    required this.profileImageUrl,
     required this.totalOrders,
     required this.onLogout,
+    required this.onUploadProfileImage,
     required this.onSendSupport,
     required this.onReplySupport,
     required this.onCloseSupport,
@@ -20,9 +24,12 @@ class ProfilePage extends StatefulWidget {
     this.motionEpoch = 0,
   });
 
+  final String userDisplayName;
   final String userEmail;
+  final String? profileImageUrl;
   final int totalOrders;
   final VoidCallback onLogout;
+  final Future<String?> Function(XFile file) onUploadProfileImage;
   final Future<void> Function(String subject, String message) onSendSupport;
   final Future<void> Function(int ticketId, String message) onReplySupport;
   final Future<void> Function(int ticketId) onCloseSupport;
@@ -39,6 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _subjectController = TextEditingController();
   final _supportController = TextEditingController();
   bool _sending = false;
+  bool _uploadingProfileImage = false;
   final Map<int, TextEditingController> _replyControllers = {};
 
   @override
@@ -104,6 +112,44 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 1400,
+    );
+    if (file == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _uploadingProfileImage = true;
+    });
+
+    try {
+      final uploadedUrl = await widget.onUploadProfileImage(file);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            uploadedUrl != null && uploadedUrl.isNotEmpty
+                ? 'Profile photo updated.'
+                : 'Profile photo upload failed.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploadingProfileImage = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading) {
@@ -139,6 +185,20 @@ class _ProfilePageState extends State<ProfilePage> {
             scheme.secondaryContainer.withValues(alpha: 0.45),
           ];
     final supportForeground = scheme.onSurface;
+    final trimmedDisplayName = widget.userDisplayName.trim();
+    final showSecondaryEmail =
+        trimmedDisplayName.isNotEmpty && trimmedDisplayName != widget.userEmail;
+    final displayName = trimmedDisplayName.isNotEmpty
+        ? trimmedDisplayName
+        : widget.userEmail;
+    final nameParts = displayName
+        .split(' ')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    final initials = nameParts.isNotEmpty
+        ? nameParts.take(2).map((part) => part[0].toUpperCase()).join()
+        : (widget.userEmail.isNotEmpty ? widget.userEmail[0].toUpperCase() : '?');
 
     Color statusBackground(String status) {
       switch (status) {
@@ -187,9 +247,11 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(
-                  radius: 30,
-                  child: Icon(Icons.person, size: 30),
+                _ProfileAvatar(
+                  imageUrl: widget.profileImageUrl,
+                  initials: initials,
+                  uploading: _uploadingProfileImage,
+                  onTap: _pickProfileImage,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -202,9 +264,30 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        widget.userEmail,
-                        maxLines: 2,
+                        displayName,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (showSecondaryEmail) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.userEmail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tap the avatar to upload or replace your profile photo.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -533,6 +616,126 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ],
     );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.imageUrl,
+    required this.initials,
+    required this.uploading,
+    required this.onTap,
+  });
+
+  final String? imageUrl;
+  final String initials;
+  final bool uploading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+    return Semantics(
+      button: true,
+      label: 'Upload profile image',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: uploading ? null : onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      scheme.primaryContainer.withValues(alpha: 0.92),
+                      scheme.secondaryContainer.withValues(alpha: 0.82),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: ClipOval(
+                  child: hasImage
+                      ? Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _ProfileAvatarFallback(
+                              initials: initials,
+                              textStyle: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: scheme.onPrimaryContainer,
+                              ),
+                            );
+                          },
+                        )
+                      : _ProfileAvatarFallback(
+                          initials: initials,
+                          textStyle: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                ),
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  child: uploading
+                      ? Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: scheme.primary,
+                          ),
+                        )
+                      : Icon(
+                          Icons.photo_camera_outlined,
+                          size: 14,
+                          color: scheme.primary,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAvatarFallback extends StatelessWidget {
+  const _ProfileAvatarFallback({
+    required this.initials,
+    required this.textStyle,
+  });
+
+  final String initials;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text(initials, style: textStyle));
   }
 }
 

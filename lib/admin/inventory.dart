@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -427,14 +427,14 @@ class _InventoryPageState extends State<InventoryPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Inventory CSV downloaded.'
-              : 'CSV export is available on web builds.',
+        SnackBar(
+          content: Text(
+            success
+                ? csvExportSuccessMessage('Inventory')
+                : csvExportFailureMessage(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   @override
@@ -693,3 +693,5 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 }
+
+

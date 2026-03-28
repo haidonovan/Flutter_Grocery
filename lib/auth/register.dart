@@ -7,7 +7,13 @@ class RegisterPage extends StatefulWidget {
     required this.onSwitchToLogin,
   });
 
-  final void Function(String email, String password) onRegister;
+  final Future<void> Function(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+  )
+  onRegister;
   final VoidCallback onSwitchToLogin;
 
   @override
@@ -16,6 +22,8 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -24,6 +32,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -32,7 +42,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
-      widget.onRegister(_emailController.text.trim(), _passwordController.text);
+      widget.onRegister(
+        _firstNameController.text.trim(),
+        _lastNameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
     }
   }
 
@@ -54,6 +69,46 @@ class _RegisterPageState extends State<RegisterPage> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _firstNameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'First name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+                    if (text.length < 2) {
+                      return 'Enter first name';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _lastNameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Last name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+                    if (text.length < 2) {
+                      return 'Enter last name';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -88,8 +143,13 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             validator: (value) {
-              if ((value ?? '').length < 4) {
-                return 'Password must be at least 4 characters';
+              final text = value ?? '';
+              if (text.length < 8) {
+                return 'Password must be at least 8 characters';
+              }
+              if (!RegExp(r'[A-Za-z]').hasMatch(text) ||
+                  !RegExp(r'\d').hasMatch(text)) {
+                return 'Use at least one letter and one number';
               }
               return null;
             },

@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
+import '../widgets/app_page_route.dart';
 import '../widgets/entrance_motion.dart';
+import '../widgets/location_view_page.dart';
 import 'models.dart';
 
 class OrderHistoryPage extends StatefulWidget {
@@ -22,6 +24,23 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   String _status = 'All';
   String _sort = 'Newest';
   DateTimeRange? _dateRange;
+
+  Future<void> _openOrderLocation(OrderRecord order) async {
+    if (!order.hasShippingLocation) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => OrderLocationViewPage(
+          latitude: order.shippingLatitude!,
+          longitude: order.shippingLongitude!,
+          address: order.shippingAddress,
+          placeLabel: order.shippingPlaceLabel,
+        ),
+      ),
+    );
+  }
 
   String _formatDate(DateTime value) {
     final months = <String>[
@@ -390,6 +409,18 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                               alignment: Alignment.centerLeft,
                               child: Text('Address: ${order.shippingAddress}'),
                             ),
+                            if (order.hasShippingLocation)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _openOrderLocation(order),
+                                    icon: const Icon(Icons.location_on_outlined),
+                                    label: const Text('View location'),
+                                  ),
+                                ),
+                              ),
                             if (order.trackingNumber != null ||
                                 order.trackingCarrier != null ||
                                 order.trackingStatus != null)
@@ -465,3 +496,4 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     );
   }
 }
+

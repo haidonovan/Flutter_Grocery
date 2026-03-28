@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -11,6 +11,7 @@ import '../main.dart';
 import '../widgets/app_page_route.dart';
 import '../widgets/animated_nav_items.dart';
 import '../widgets/entrance_motion.dart';
+import '../widgets/location_view_page.dart';
 import '../widgets/theme_mode_menu.dart';
 import '../widgets/coupon_banner.dart';
 import 'cart.dart';
@@ -449,6 +450,23 @@ class _ClientHomeState extends State<ClientHome> {
     );
   }
 
+  Future<void> _openOrderLocation(OrderRecord order) async {
+    if (!order.hasShippingLocation) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => OrderLocationViewPage(
+          latitude: order.shippingLatitude!,
+          longitude: order.shippingLongitude!,
+          address: order.shippingAddress,
+          placeLabel: order.shippingPlaceLabel,
+        ),
+      ),
+    );
+  }
+
   Future<void> _showInvoiceDialog(OrderRecord order) async {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -589,6 +607,14 @@ class _ClientHomeState extends State<ClientHome> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(order.shippingAddress),
+                                  if (order.hasShippingLocation) ...[
+                                    const SizedBox(height: 12),
+                                    OutlinedButton.icon(
+                                      onPressed: () => _openOrderLocation(order),
+                                      icon: const Icon(Icons.map_outlined),
+                                      label: const Text('View location'),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -748,6 +774,9 @@ class _ClientHomeState extends State<ClientHome> {
           apiBaseUrl: widget.store.apiBaseUrl,
           totalAmount: widget.store.cartTotal,
           itemCount: widget.store.cartItemCount,
+          userFirstname: widget.store.userFirstName,
+          userLastname: widget.store.userLastName,
+          userEmail: widget.store.userEmail,
         ),
       ),
     );
@@ -782,6 +811,9 @@ class _ClientHomeState extends State<ClientHome> {
         shippingAddress: request.shippingAddress,
         paymentMethod: request.paymentMethod,
         couponCode: request.couponCode,
+        shippingLatitude: request.shippingLatitude,
+        shippingLongitude: request.shippingLongitude,
+        shippingPlaceLabel: request.shippingPlaceLabel,
       );
     } catch (_) {
       result = const PlaceOrderResult(
@@ -1178,9 +1210,12 @@ class _ClientHomeState extends State<ClientHome> {
               active: _currentTabIndex == 4,
               child: ProfilePage(
                 key: ValueKey('profile-page-$_profileMotionEpoch'),
+                userDisplayName: widget.store.userDisplayName,
                 userEmail: widget.userEmail,
+                profileImageUrl: widget.store.userProfileImageUrl,
                 totalOrders: orders.length,
                 onLogout: widget.onLogout,
+                onUploadProfileImage: widget.store.uploadProfileImage,
                 onSendSupport: widget.store.submitSupportTicket,
                 onReplySupport: widget.store.sendSupportThreadMessage,
                 onCloseSupport: widget.store.closeSupportTicket,
@@ -1577,3 +1612,4 @@ class _InvoiceAmountRow extends StatelessWidget {
     );
   }
 }
+

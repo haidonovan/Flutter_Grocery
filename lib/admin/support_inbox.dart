@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
@@ -101,14 +101,14 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Support CSV downloaded.'
-              : 'CSV export is available on web builds.',
+        SnackBar(
+          content: Text(
+            success
+                ? csvExportSuccessMessage('Support')
+                : csvExportFailureMessage(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   Future<void> _runTicketAction(
@@ -505,3 +505,5 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
     );
   }
 }
+
+

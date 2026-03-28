@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -280,14 +280,14 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Products CSV downloaded.'
-              : 'CSV export is available on web builds.',
+        SnackBar(
+          content: Text(
+            success
+                ? csvExportSuccessMessage('Products')
+                : csvExportFailureMessage(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   Future<void> _importProducts(BuildContext context) async {
@@ -929,29 +929,18 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
-                                      if (_togglingProductIds.contains(
-                                        product.id,
-                                      ))
-                                        const SizedBox(
-                                          width: 36,
-                                          height: 36,
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8),
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.2,
-                                            ),
-                                          ),
-                                        )
-                                      else
-                                        Switch(
-                                          value: product.isActive,
-                                          onChanged: (value) async {
-                                            await _toggleProductStatus(
-                                              product,
-                                              value,
-                                            );
-                                          },
+                                      _ProductStatusToggle(
+                                        value: product.isActive,
+                                        busy: _togglingProductIds.contains(
+                                          product.id,
                                         ),
+                                        onChanged: (value) async {
+                                          await _toggleProductStatus(
+                                            product,
+                                            value,
+                                          );
+                                        },
+                                      ),
                                       IconButton(
                                         onPressed: () =>
                                             _editProduct(context, product),
@@ -1049,6 +1038,173 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
   }
 }
 
+class _ProductStatusToggle extends StatelessWidget {
+  const _ProductStatusToggle({
+    required this.value,
+    required this.busy,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final bool busy;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    const animationDuration = Duration(milliseconds: 360);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSwitcher(
+          duration: animationDuration,
+          switchInCurve: Curves.easeInOutCubic,
+          switchOutCurve: Curves.easeInOutCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SizeTransition(
+                sizeFactor: animation,
+                axis: Axis.horizontal,
+                axisAlignment: 1,
+                child: child,
+              ),
+            );
+          },
+          child: busy
+              ? Container(
+                  key: const ValueKey('toggle-busy'),
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(
+                      alpha: 0.65,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    'Syncing',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              : const SizedBox(
+                  key: ValueKey('toggle-idle'),
+                  width: 0,
+                  height: 0,
+                ),
+        ),
+        AnimatedOpacity(
+          duration: animationDuration,
+          curve: Curves.easeInOutCubic,
+          opacity: busy ? 0.82 : 1,
+          child: _SmoothStatusSwitch(
+            value: value,
+            enabled: !busy,
+            activeColor: scheme.primary,
+            activeThumbColor: scheme.onPrimary,
+            inactiveColor: scheme.surfaceContainerHighest,
+            inactiveThumbColor: scheme.surface,
+            borderColor: scheme.outlineVariant.withValues(alpha: 0.45),
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SmoothStatusSwitch extends StatelessWidget {
+  const _SmoothStatusSwitch({
+    required this.value,
+    required this.enabled,
+    required this.activeColor,
+    required this.activeThumbColor,
+    required this.inactiveColor,
+    required this.inactiveThumbColor,
+    required this.borderColor,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final bool enabled;
+  final Color activeColor;
+  final Color activeThumbColor;
+  final Color inactiveColor;
+  final Color inactiveThumbColor;
+  final Color borderColor;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const duration = Duration(milliseconds: 360);
+    const switchWidth = 54.0;
+    const switchHeight = 32.0;
+    const thumbSize = 24.0;
+
+    return Semantics(
+      toggled: value,
+      button: true,
+      enabled: enabled,
+      child: GestureDetector(
+        onTap: enabled ? () => onChanged(!value) : null,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: duration,
+          curve: Curves.easeInOutCubic,
+          width: switchWidth,
+          height: switchHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: value ? activeColor : inactiveColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: value ? 0.12 : 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: AnimatedAlign(
+            duration: duration,
+            curve: Curves.easeInOutCubic,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: AnimatedContainer(
+              duration: duration,
+              curve: Curves.easeInOutCubic,
+              width: thumbSize,
+              height: thumbSize,
+              decoration: BoxDecoration(
+                color: value ? activeThumbColor : inactiveThumbColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.16),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ProductChip extends StatelessWidget {
   const _ProductChip({
     required this.label,
@@ -1077,3 +1233,5 @@ class _ProductChip extends StatelessWidget {
     );
   }
 }
+
+

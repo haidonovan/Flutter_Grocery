@@ -498,11 +498,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             child: Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                title: Text(comment.userEmail),
+                leading: _CommentAvatar(comment: comment),
+                contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                title: Text(comment.userDisplayName),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 4),
+                    if (comment.userDisplayName != comment.userEmail) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        comment.userEmail,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 8),
                     Text(comment.message),
                     const SizedBox(height: 6),
                     Text(
@@ -838,6 +847,65 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           bottomNavigationBar: _buildMobileBottomBar(context, canAdd),
         );
       },
+    );
+  }
+}
+
+class _CommentAvatar extends StatelessWidget {
+  const _CommentAvatar({required this.comment});
+
+  final ProductComment comment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final imageUrl = comment.userProfileImageUrl?.trim();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            scheme.primaryContainer.withValues(alpha: 0.92),
+            scheme.secondaryContainer.withValues(alpha: 0.82),
+          ],
+        ),
+      ),
+      child: ClipOval(
+        child: hasImage
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _CommentAvatarFallback(comment: comment);
+                },
+              )
+            : _CommentAvatarFallback(comment: comment),
+      ),
+    );
+  }
+}
+
+class _CommentAvatarFallback extends StatelessWidget {
+  const _CommentAvatarFallback({required this.comment});
+
+  final ProductComment comment;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Text(
+        comment.userInitials,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: scheme.onPrimaryContainer,
+        ),
+      ),
     );
   }
 }

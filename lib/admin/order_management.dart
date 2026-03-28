@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../client/models.dart';
 import '../store/grocery_store_state.dart';
 import '../utils/csv_export.dart';
+import '../widgets/app_page_route.dart';
+import '../widgets/location_view_page.dart';
 import '../widgets/skeleton.dart';
 
 class OrderManagementPage extends StatefulWidget {
@@ -96,6 +98,24 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
           color: _statusColor(context, status),
           fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openOrderLocation(OrderRecord order) async {
+    if (!order.hasShippingLocation) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => OrderLocationViewPage(
+          latitude: order.shippingLatitude!,
+          longitude: order.shippingLongitude!,
+          address: order.shippingAddress,
+          placeLabel: order.shippingPlaceLabel,
+          title: 'Customer location',
         ),
       ),
     );
@@ -323,14 +343,14 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Orders CSV downloaded.'
-              : 'CSV export is available on web builds.',
+        SnackBar(
+          content: Text(
+            success
+                ? csvExportSuccessMessage('Orders')
+                : csvExportFailureMessage(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   @override
@@ -552,6 +572,21 @@ class _OrderManagementPageState extends State<OrderManagementPage> {
                                   'Address: ${order.shippingAddress}',
                                 ),
                               ),
+                              if (order.hasShippingLocation)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _openOrderLocation(order),
+                                      icon: const Icon(
+                                        Icons.location_on_outlined,
+                                      ),
+                                      label: const Text('View location'),
+                                    ),
+                                  ),
+                                ),
                               const SizedBox(height: 6),
                               Align(
                                 alignment: Alignment.centerLeft,
@@ -865,3 +900,6 @@ class _OrderToolbar extends StatelessWidget {
     );
   }
 }
+
+
+

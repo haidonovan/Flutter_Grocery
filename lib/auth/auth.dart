@@ -69,8 +69,15 @@ class _AuthGateState extends State<AuthGate> {
     ).showSnackBar(SnackBar(content: Text(result.message ?? 'Login failed.')));
   }
 
-  Future<void> _handleRegister(String email, String password) async {
+  Future<void> _handleRegister(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+  ) async {
     final result = await widget.store.register(
+      firstName: firstName,
+      lastName: lastName,
       email: email,
       password: password,
     );
