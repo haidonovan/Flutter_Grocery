@@ -143,9 +143,7 @@ class ApiClient {
     final bytes = await file.readAsBytes();
     final response = await _sendWithFallback((baseUrl) async {
       final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'));
-      if (_token != null && _token!.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $_token';
-      }
+      request.headers.addAll(_headers(includeJsonContentType: false));
       request.files.add(
         http.MultipartFile.fromBytes(
           'image',
@@ -186,6 +184,10 @@ class ApiClient {
     if (includeJsonContentType) {
       headers['Content-Type'] = 'application/json';
     }
+    headers['Accept'] = 'application/json';
+    if (_isNgrokUrl(_baseUrl)) {
+      headers['ngrok-skip-browser-warning'] = '1';
+    }
     if (_token != null && _token!.isNotEmpty) {
       headers['Authorization'] = 'Bearer $_token';
     }
@@ -205,6 +207,14 @@ class ApiClient {
       return <String, dynamic>{};
     }
 
+    final trimmed = body.trimLeft();
+    if (_looksLikeHtml(trimmed)) {
+      throw ApiException(
+        _htmlResponseMessage(trimmed),
+        statusCode: response.statusCode,
+      );
+    }
+
     final decoded = jsonDecode(body);
     if (decoded is Map<String, dynamic>) {
       return decoded;
@@ -216,6 +226,11 @@ class ApiClient {
   }
 
   String _extractMessage(String body) {
+    final trimmed = body.trimLeft();
+    if (_looksLikeHtml(trimmed)) {
+      return _htmlResponseMessage(trimmed);
+    }
+
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic> && decoded['error'] is String) {
@@ -225,5 +240,21 @@ class ApiClient {
       // ignore decode failures
     }
     return 'Request failed.';
+  }
+
+  bool _looksLikeHtml(String value) {
+    return value.startsWith('<!DOCTYPE html') || value.startsWith('<html');
+  }
+
+  String _htmlResponseMessage(String body) {
+    if (_isNgrokUrl(_baseUrl)) {
+      return 'The server returned an HTML page instead of JSON. If you are testing through ngrok, this is usually the ngrok browser warning page.';
+    }
+    return 'The server returned HTML instead of JSON. Check that the API base URL points to your backend, not a web page.';
+  }
+
+  bool _isNgrokUrl(String value) {
+    final host = Uri.tryParse(value)?.host.toLowerCase() ?? '';
+    return host.contains('ngrok');
   }
 }

@@ -141,7 +141,7 @@ class PayWayService {
       final response = await http
           .post(
             _buildUri(baseUrl, '/api/payments/create'),
-            headers: _headers(authToken),
+            headers: _headers(baseUrl, authToken),
             body: jsonEncode({
               'orderId': orderId,
               'amount': amount.toStringAsFixed(2),
@@ -183,7 +183,7 @@ class PayWayService {
       final response = await http
           .get(
             _buildUri(baseUrl, '/api/payments/status/$tranId'),
-            headers: _headers(authToken),
+            headers: _headers(baseUrl, authToken),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -215,11 +215,16 @@ class PayWayService {
     return Uri.parse('$normalized$path');
   }
 
-  static Map<String, String> _headers(String authToken) {
-    return {
+  static Map<String, String> _headers(String baseUrl, String authToken) {
+    final headers = <String, String>{
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       'Authorization': 'Bearer $authToken',
     };
+    if (_isNgrokUrl(baseUrl)) {
+      headers['ngrok-skip-browser-warning'] = '1';
+    }
+    return headers;
   }
 
   static Map<String, dynamic> _decodeBody(String body) {
@@ -227,10 +232,31 @@ class PayWayService {
       return <String, dynamic>{};
     }
 
+    final trimmed = body.trimLeft();
+    if (_looksLikeHtml(trimmed)) {
+      throw FormatException(_htmlResponseMessage(trimmed));
+    }
+
     final decoded = jsonDecode(body);
     if (decoded is Map<String, dynamic>) {
       return decoded;
     }
     return <String, dynamic>{};
+  }
+
+  static bool _isNgrokUrl(String value) {
+    final host = Uri.tryParse(value)?.host.toLowerCase() ?? '';
+    return host.contains('ngrok');
+  }
+
+  static bool _looksLikeHtml(String value) {
+    return value.startsWith('<!DOCTYPE html') || value.startsWith('<html');
+  }
+
+  static String _htmlResponseMessage(String body) {
+    if (body.contains('ngrok')) {
+      return 'ngrok returned its browser warning page instead of JSON. The app is now sending the ngrok bypass header, so retry the payment request.';
+    }
+    return 'The server returned HTML instead of JSON. Check that the app is calling the backend API URL, not a web page.';
   }
 }
