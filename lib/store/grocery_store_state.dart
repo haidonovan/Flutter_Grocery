@@ -41,7 +41,8 @@ class GroceryStoreState extends ChangeNotifier {
   static const String _userRoleKey = 'api_user_role';
 
   static Future<GroceryStoreState> create({
-    String baseUrl = 'https://grocerystore-production-eea3.up.railway.app',
+    // String baseUrl = 'https://grocerystore-production-eea3.up.railway.app',
+      String baseUrl = 'https://broderick-rangy-jameson.ngrok-free.dev',
     String? fallbackBaseUrl,
   }) async {
     final client = ApiClient(
@@ -95,6 +96,7 @@ class GroceryStoreState extends ChangeNotifier {
   bool get isLoadingCategories => _isLoadingCategories;
   String? get errorMessage => _errorMessage;
   String get apiBaseUrl => _apiClient.baseUrl;
+  String? get authToken => _token;
 
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
   bool get isAdmin => _role == 'admin';
@@ -103,9 +105,10 @@ class GroceryStoreState extends ChangeNotifier {
   String get userLastName => _userLastName?.trim() ?? '';
   String? get userProfileImageUrl => _userProfileImageUrl;
   String get userDisplayName {
-    final parts = [userFirstName, userLastName]
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
+    final parts = [
+      userFirstName,
+      userLastName,
+    ].where((value) => value.isNotEmpty).toList(growable: false);
     if (parts.isNotEmpty) {
       return parts.join(' ');
     }
@@ -114,6 +117,7 @@ class GroceryStoreState extends ChangeNotifier {
     }
     return 'Client';
   }
+
   int? get userId => _userId;
 
   List<Product> get allProducts => List.unmodifiable(_products);
@@ -175,6 +179,22 @@ class GroceryStoreState extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  OrderRecord? getOrderById(String orderId) {
+    try {
+      return _orders.firstWhere((item) => item.id == orderId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void clearCart() {
+    if (_cart.isEmpty) {
+      return;
+    }
+    _cart.clear();
+    notifyListeners();
   }
 
   int cartQuantityForProduct(String productId) {
@@ -1178,7 +1198,10 @@ class GroceryStoreState extends ChangeNotifier {
 
     _setLoading(true);
     try {
-      final response = await _apiClient.uploadImage('/api/uploads/profile', file);
+      final response = await _apiClient.uploadImage(
+        '/api/uploads/profile',
+        file,
+      );
       final url = response['url']?.toString();
       final user = response['user'] as Map<String, dynamic>?;
       if (user != null) {

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -19,6 +19,7 @@ import 'checkout.dart';
 import 'favorites.dart';
 import 'models.dart';
 import 'order_history.dart';
+import 'payment_screen.dart';
 import 'product_detail.dart';
 import 'product_list.dart';
 import 'profile.dart';
@@ -160,9 +161,7 @@ class _ClientHomeState extends State<ClientHome> {
     if (!mounted || _currentTabIndex != 0) {
       return;
     }
-    widget.store.retryStorefrontIfStale(
-      retryAfter: _homeAutoRefreshInterval,
-    );
+    widget.store.retryStorefrontIfStale(retryAfter: _homeAutoRefreshInterval);
   }
 
   Future<void> _refreshCurrentData() async {
@@ -247,7 +246,9 @@ class _ClientHomeState extends State<ClientHome> {
         decoration: BoxDecoration(
           color: theme.scaffoldBackgroundColor,
           border: Border(
-            top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.65)),
+            top: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.65),
+            ),
           ),
           boxShadow: [
             BoxShadow(
@@ -258,21 +259,25 @@ class _ClientHomeState extends State<ClientHome> {
           ],
         ),
         child: Row(
-          children: _navItems.asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: AnimatedNavPillButton(
-                  icon: item.icon,
-                  label: item.label,
-                  selected: _currentTabIndex == index,
-                  onTap: () => _selectTab(index),
-                ),
-              ),
-            );
-          }).toList(growable: false),
+          children: _navItems
+              .asMap()
+              .entries
+              .map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: AnimatedNavPillButton(
+                      icon: item.icon,
+                      label: item.label,
+                      selected: _currentTabIndex == index,
+                      onTap: () => _selectTab(index),
+                    ),
+                  ),
+                );
+              })
+              .toList(growable: false),
         ),
       ),
     );
@@ -610,7 +615,8 @@ class _ClientHomeState extends State<ClientHome> {
                                   if (order.hasShippingLocation) ...[
                                     const SizedBox(height: 12),
                                     OutlinedButton.icon(
-                                      onPressed: () => _openOrderLocation(order),
+                                      onPressed: () =>
+                                          _openOrderLocation(order),
                                       icon: const Icon(Icons.map_outlined),
                                       label: const Text('View location'),
                                     ),
@@ -785,6 +791,97 @@ class _ClientHomeState extends State<ClientHome> {
       return;
     }
 
+    if (request.paymentMethod == 'ABA Pay') {
+      final authToken = widget.store.authToken;
+      if (authToken == null || authToken.isEmpty) {
+        await _showAnimatedNoticeDialog(
+          title: 'Login required',
+          message: 'Please log in again before starting an ABA payment.',
+          icon: Icons.lock_outline_rounded,
+          isError: true,
+        );
+        return;
+      }
+
+      final paymentResult = await Navigator.of(context).push<PaymentResult>(
+        AppPageRoute<PaymentResult>(
+          builder: (_) => PaymentScreen(
+            apiBaseUrl: widget.store.apiBaseUrl,
+            authToken: authToken,
+            amount: widget.store.cartTotal,
+            currency: 'USD',
+            shippingAddress: request.shippingAddress,
+            lines: widget.store.cartItems
+                .map(
+                  (item) => {
+                    'productId': item.product.id,
+                    'quantity': item.quantity,
+                  },
+                )
+                .toList(growable: false),
+            couponCode: request.couponCode,
+            shippingLatitude: request.shippingLatitude,
+            shippingLongitude: request.shippingLongitude,
+            shippingPlaceLabel: request.shippingPlaceLabel,
+            firstName: widget.store.userFirstName,
+            lastName: widget.store.userLastName,
+            email: widget.store.userEmail,
+            storeName: 'Flutter Grocery',
+            onOrderCreated: widget.store.clearCart,
+          ),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (paymentResult?.orderId != null) {
+        await widget.store.refreshAll();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      if (paymentResult?.success != true) {
+        final pendingOrderNotice =
+            paymentResult?.orderId != null &&
+            paymentResult?.message == 'Payment cancelled';
+        await _showAnimatedNoticeDialog(
+          title: pendingOrderNotice
+              ? 'Payment still pending'
+              : 'Payment not completed',
+          message: pendingOrderNotice
+              ? 'The order was created, but ABA payment was not completed. You can review it in Order history.'
+              : paymentResult?.message ?? 'Payment was not completed.',
+          icon: pendingOrderNotice
+              ? Icons.access_time_rounded
+              : Icons.error_outline_rounded,
+          isError: !pendingOrderNotice,
+        );
+        return;
+      }
+
+      _selectTab(3);
+
+      final order = paymentResult?.orderId != null
+          ? widget.store.getOrderById(paymentResult!.orderId!)
+          : null;
+      if (order != null) {
+        await _showPurchaseSignature();
+        if (!mounted) {
+          return;
+        }
+        await _showInvoiceDialog(order);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment confirmed successfully.')),
+        );
+      }
+      return;
+    }
+
     final processingStep = ValueNotifier<_OrderProcessingStep>(
       _orderProcessingSteps.first,
     );
@@ -794,16 +891,15 @@ class _ClientHomeState extends State<ClientHome> {
       paymentMethod: request.paymentMethod,
     );
     var currentStepIndex = 0;
-    final processingTimer = Timer.periodic(
-      _orderProcessingMessageInterval,
-      (_) {
-        currentStepIndex = math.min(
-          currentStepIndex + 1,
-          _orderProcessingSteps.length - 1,
-        );
-        processingStep.value = _orderProcessingSteps[currentStepIndex];
-      },
-    );
+    final processingTimer = Timer.periodic(_orderProcessingMessageInterval, (
+      _,
+    ) {
+      currentStepIndex = math.min(
+        currentStepIndex + 1,
+        _orderProcessingSteps.length - 1,
+      );
+      processingStep.value = _orderProcessingSteps[currentStepIndex];
+    });
 
     PlaceOrderResult result;
     try {
@@ -923,9 +1019,9 @@ class _ClientHomeState extends State<ClientHome> {
                                         : Icons.receipt_long_rounded,
                                     color: step.isTerminal
                                         ? (step.icon ==
-                                                Icons.error_outline_rounded
-                                            ? scheme.error
-                                            : scheme.primary)
+                                                  Icons.error_outline_rounded
+                                              ? scheme.error
+                                              : scheme.primary)
                                         : scheme.primary,
                                     size: 28,
                                   ),
@@ -1005,7 +1101,8 @@ class _ClientHomeState extends State<ClientHome> {
                                           step.icon,
                                           key: ValueKey(step.icon),
                                           size: 40,
-                                          color: step.icon ==
+                                          color:
+                                              step.icon ==
                                                   Icons.error_outline_rounded
                                               ? scheme.error
                                               : scheme.primary,
@@ -1016,12 +1113,12 @@ class _ClientHomeState extends State<ClientHome> {
                                           height: 38,
                                           child:
                                               CircularProgressIndicator.adaptive(
-                                            strokeWidth: 3.2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              scheme.primary,
-                                            ),
-                                          ),
+                                                strokeWidth: 3.2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                      Color
+                                                    >(scheme.primary),
+                                              ),
                                         ),
                                 ),
                                 const SizedBox(height: 22),
@@ -1042,10 +1139,10 @@ class _ClientHomeState extends State<ClientHome> {
                                     children: [
                                       Text(
                                         'Payment method',
-                                        style:
-                                            theme.textTheme.labelMedium?.copyWith(
-                                          color: scheme.onSurfaceVariant,
-                                        ),
+                                        style: theme.textTheme.labelMedium
+                                            ?.copyWith(
+                                              color: scheme.onSurfaceVariant,
+                                            ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -1612,4 +1709,3 @@ class _InvoiceAmountRow extends StatelessWidget {
     );
   }
 }
-

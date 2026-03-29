@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../widgets/app_page_route.dart';
 import '../widgets/location_picker_page.dart';
-import 'payment_screen.dart';
 
 class CheckoutRequest {
   const CheckoutRequest({
@@ -144,63 +143,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       shippingPlaceLabel: _selectedLocation?.label,
     );
 
-    if (_paymentMethod == 'ABA Pay') {
-      setState(() => _placingOrder = false);
-      await _handleAbaPayment(request);
-      return;
-    }
-
     setState(() => _placingOrder = false);
     if (mounted) {
       Navigator.of(context).pop(request);
-    }
-  }
-
-  Future<void> _handleAbaPayment(CheckoutRequest request) async {
-    final orderId =
-        widget.orderId ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-    final paymentResult = await Navigator.of(context).push<PaymentResult>(
-      MaterialPageRoute(
-        builder: (_) => PaymentScreen(
-          apiBaseUrl: widget.apiBaseUrl,
-          orderId: orderId,
-          amount: widget.totalAmount,
-          paymentOption: 'abapay',
-          currency: 'USD',
-          firstname: widget.userFirstname,
-          lastname: widget.userLastname,
-          email: widget.userEmail,
-          phone: widget.userPhone,
-        ),
-      ),
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    if (paymentResult?.success == true) {
-      Navigator.of(context).pop(
-        CheckoutRequest(
-          shippingAddress: request.shippingAddress,
-          paymentMethod: 'ABA Pay (${paymentResult!.tranId})',
-          couponCode: request.couponCode,
-          shippingLatitude: request.shippingLatitude,
-          shippingLongitude: request.shippingLongitude,
-          shippingPlaceLabel: request.shippingPlaceLabel,
-        ),
-      );
-    } else if (paymentResult?.success == false &&
-        paymentResult?.message != 'Payment cancelled') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            paymentResult?.message ?? 'Payment was not completed.',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
     }
   }
 
@@ -412,7 +357,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 helperText:
                     'Copy a code from Profile > Coupon wallet and paste it here. Each account can redeem a coupon only once.',
                 filled: true,
-                fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                fillColor: scheme.surfaceContainerHighest.withValues(
+                  alpha: 0.55,
+                ),
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -444,7 +391,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'You will be shown a QR code to scan with your ABA Mobile app. Payment is confirmed instantly.',
+                        'Your order will be created first, then you will see an ABA KHQR screen to scan or open in ABA Mobile.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: const Color(0xFF003087),
                         ),
@@ -471,7 +418,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     ),
               label: Text(
                 _paymentMethod == 'ABA Pay'
-                    ? 'Pay with ABA'
+                    ? 'Continue to ABA payment'
                     : 'Place order securely',
               ),
             ),
@@ -576,11 +523,7 @@ class _PaymentTile extends StatelessWidget {
                 color: selected ? scheme.primary : Colors.transparent,
               ),
               child: selected
-                  ? Icon(
-                      Icons.check,
-                      size: 14,
-                      color: scheme.onPrimary,
-                    )
+                  ? Icon(Icons.check, size: 14, color: scheme.onPrimary)
                   : null,
             ),
           ],
@@ -591,7 +534,11 @@ class _PaymentTile extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value, this.valueStyle});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.valueStyle,
+  });
 
   final String label;
   final String value;
@@ -622,9 +569,7 @@ class _LocationChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.4),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -633,10 +578,7 @@ class _LocationChip extends StatelessWidget {
           const SizedBox(width: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 220),
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(label, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
