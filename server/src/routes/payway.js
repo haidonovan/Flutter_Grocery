@@ -25,22 +25,37 @@ const QR_HASH_ORDER = [
   'merchant_id',
   'tran_id',
   'amount',
-  'items',
   'first_name',
   'last_name',
   'email',
   'phone',
-  'purchase_type',
   'payment_option',
-  'callback_url',
-  'return_deeplink',
   'currency',
-  'custom_fields',
   'return_params',
-  'payout',
   'lifetime',
-  'qr_image_template',
 ];
+
+// const QR_HASH_ORDER = [
+//   'req_time',
+//   'merchant_id',
+//   'tran_id',
+//   'amount',
+//   'items',
+//   'first_name',
+//   'last_name',
+//   'email',
+//   'phone',
+//   'purchase_type',
+//   'payment_option',
+//   'callback_url',
+//   'return_deeplink',
+//   'currency',
+//   'custom_fields',
+//   'return_params',
+//   'payout',
+//   'lifetime',
+//   'qr_image_template',
+// ];
 
 function getConfigError() {
   if (!PAYWAY_CONFIG.merchantId || !PAYWAY_CONFIG.publicKey) {
@@ -258,7 +273,9 @@ router.post('/create-payment', async (req, res) => {
 
     const reqTime = getReqTime();
     const tranId = createTranId(orderId);
-    const amountString = parsedAmount.toFixed(2);
+    const amountString = Number(parsedAmount).toFixed(2);
+    console.log("🚀 SENDING AMOUNT TO ABA:", amountString);
+    console.log("🚀 TYPE:", typeof amountString);
     const resolvedCallbackUrl = createCallbackUrl(callbackUrl);
 
     const payload = {
@@ -267,28 +284,49 @@ router.post('/create-payment', async (req, res) => {
       tran_id: tranId,
       amount: amountString,
 
-      // 🔥 REQUIRED EMPTY FIELDS
-      items: "",
       first_name: firstname || "",
       last_name: lastname || "",
       email: email || "",
       phone: phone || "",
 
-      purchase_type: 'purchase',
       payment_option: mapQrPaymentOption(paymentOption),
+      currency: "USD",
 
-      callback_url: resolvedCallbackUrl
-        ? Buffer.from(resolvedCallbackUrl).toString('base64')
-        : "",
-
-      return_deeplink: "",   // 🔥 ADD THIS
-      currency,
-      custom_fields: "",     // 🔥 ADD THIS
       return_params: String(orderId),
-      payout: "",            // 🔥 ADD THIS
       lifetime: 3,
-      qr_image_template: 'template3_color',
     };
+
+    // const payload = {
+    //   req_time: reqTime,
+    //   merchant_id: PAYWAY_CONFIG.merchantId,
+    //   tran_id: tranId,
+    //   amount: amountString,
+
+    //   // 🔥 REQUIRED EMPTY FIELDS
+    //   items: "",
+    //   first_name: firstname || "",
+    //   last_name: lastname || "",
+    //   email: email || "",
+    //   phone: phone || "",
+
+    //   purchase_type: 'purchase',
+    //   payment_option: mapQrPaymentOption(paymentOption),
+
+    //   callback_url: resolvedCallbackUrl
+    //     ? Buffer.from(resolvedCallbackUrl).toString('base64')
+    //     : "",
+
+    //   return_deeplink: "",   // 🔥 ADD THIS
+    //   currency: String(currency || "USD").toUpperCase(),
+    //   custom_fields: "",     // 🔥 ADD THIS
+    //   return_params: String(orderId),
+    //   payout: "",            // 🔥 ADD THIS
+    //   lifetime: 3,
+    //   qr_image_template: 'template3_color',
+    // };
+
+    console.log("📦 FINAL PAYLOAD:", payload);
+  console.log("🔐 HASH STRING:", buildHashString(payload, QR_HASH_ORDER));
 
     // const payload = {
     //   req_time: reqTime,
@@ -315,10 +353,11 @@ router.post('/create-payment', async (req, res) => {
     if (phone) {
       payload.phone = phone;
     }
-    if (resolvedCallbackUrl) {
-      payload.callback_url = Buffer.from(resolvedCallbackUrl, 'utf8').toString('base64');
-    }
+    // if (resolvedCallbackUrl) {
+    //   payload.callback_url = Buffer.from(resolvedCallbackUrl, 'utf8').toString('base64');
+    // }
 
+    console.log("📦 PAYLOAD BEFORE HASH:", payload);
     const hashString = buildHashString(payload, QR_HASH_ORDER);
 
     console.log("====== ABA DEBUG ======");

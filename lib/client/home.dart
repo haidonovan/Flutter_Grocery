@@ -773,13 +773,30 @@ class _ClientHomeState extends State<ClientHome> {
     );
   }
 
-  Future<void> _openCheckout() async {
+  Future<void> _openCheckout(List<CartViewItem> selectedItems) async {
+    if (selectedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select at least one product before checkout.'),
+        ),
+      );
+      return;
+    }
+
+    final selectedTotal = widget.store.cartTotalFor(selectedItems);
+    final selectedItemCount = widget.store.cartItemCountFor(selectedItems);
+    final selectedLines = widget.store.checkoutLinesFor(selectedItems);
+    final selectedProductIds = selectedItems
+        .map((item) => item.productId)
+        .toSet()
+        .toList(growable: false);
+
     final request = await Navigator.of(context).push<CheckoutRequest>(
       AppPageRoute<CheckoutRequest>(
         builder: (_) => CheckoutPage(
           apiBaseUrl: widget.store.apiBaseUrl,
-          totalAmount: widget.store.cartTotal,
-          itemCount: widget.store.cartItemCount,
+          totalAmount: selectedTotal,
+          itemCount: selectedItemCount,
           userFirstname: widget.store.userFirstName,
           userLastname: widget.store.userLastName,
           userEmail: widget.store.userEmail,
@@ -808,17 +825,10 @@ class _ClientHomeState extends State<ClientHome> {
           builder: (_) => PaymentScreen(
             apiBaseUrl: widget.store.apiBaseUrl,
             authToken: authToken,
-            amount: widget.store.cartTotal,
+            amount: selectedTotal,
             currency: 'USD',
             shippingAddress: request.shippingAddress,
-            lines: widget.store.cartItems
-                .map(
-                  (item) => {
-                    'productId': item.product.id,
-                    'quantity': item.quantity,
-                  },
-                )
-                .toList(growable: false),
+            lines: selectedLines,
             couponCode: request.couponCode,
             shippingLatitude: request.shippingLatitude,
             shippingLongitude: request.shippingLongitude,
@@ -827,7 +837,9 @@ class _ClientHomeState extends State<ClientHome> {
             lastName: widget.store.userLastName,
             email: widget.store.userEmail,
             storeName: 'Flutter Grocery',
-            onOrderCreated: widget.store.clearCart,
+            onOrderCreated: () {
+              widget.store.clearCartItemsByProductIds(selectedProductIds);
+            },
           ),
         ),
       );
@@ -904,6 +916,7 @@ class _ClientHomeState extends State<ClientHome> {
     PlaceOrderResult result;
     try {
       result = await widget.store.placeOrder(
+        checkoutItems: selectedItems,
         shippingAddress: request.shippingAddress,
         paymentMethod: request.paymentMethod,
         couponCode: request.couponCode,
@@ -1273,7 +1286,6 @@ class _ClientHomeState extends State<ClientHome> {
               active: _currentTabIndex == 2,
               child: CartPage(
                 items: cartItems,
-                totalAmount: widget.store.cartTotal,
                 onIncrease: (item) {
                   final success = widget.store.increaseCartQuantity(
                     item.product.id,

@@ -199,7 +199,17 @@ export async function prepareOrderDraft({
       : 0;
     const unitPrice = product.price * (1 - discountPercent / 100);
 
-    subtotal += unitPrice * line.quantity;
+    // subtotal += unitPrice * line.quantity;
+    const lineTotal = unitPrice * line.quantity;
+
+    // optional debug
+    console.log("🛒 LINE TOTAL RAW:", lineTotal);
+
+    subtotal += lineTotal;
+
+    console.log("🧮 SUBTOTAL RAW:", subtotal);
+    subtotal = Math.round(subtotal * 100) / 100;
+    console.log("✅ SUBTOTAL FIXED:", subtotal);
     orderLineData.push({
       productId: product.id,
       productName: product.name,
@@ -216,13 +226,20 @@ export async function prepareOrderDraft({
   let couponDiscount = 0;
   if (coupon) {
     if (coupon.type === 'percent') {
-      couponDiscount = subtotal * (coupon.value / 100);
+      // couponDiscount = subtotal * (coupon.value / 100);
+      couponDiscount = Number((subtotal * (coupon.value / 100)).toFixed(2));
     } else {
       couponDiscount = coupon.value;
     }
   }
 
-  const total = Math.max(0, subtotal - couponDiscount);
+    
+    // const total = Math.max(0, subtotal - couponDiscount);
+    const rawTotal = Math.max(0, subtotal - couponDiscount);
+    const total = Number((Math.round(rawTotal * 100) / 100).toFixed(2));
+
+    // 🔥 CRITICAL FIX: normalize to 2 decimals
+   
 
   return {
     orderId: orderId?.toString().trim() || createOrderId(),
@@ -252,7 +269,7 @@ export async function commitOrderDraft(draft, { payment = {} } = {}) {
           shippingLongitude: draft.shippingLongitude,
           shippingPlaceLabel: draft.shippingPlaceLabel,
           paymentMethod: draft.paymentMethod,
-          total: draft.total,
+          total: Number(draft.total),
           status: payment.orderStatus ?? 'pending',
           tranId: payment.tranId ?? null,
           paymentGateway: payment.gateway ?? null,

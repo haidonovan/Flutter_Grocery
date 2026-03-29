@@ -11,6 +11,7 @@ class CartViewItem {
   final Product product;
   final int quantity;
 
+  String get productId => product.id;
   double get subtotal => product.discountedPrice * quantity;
 }
 
@@ -42,7 +43,7 @@ class GroceryStoreState extends ChangeNotifier {
 
   static Future<GroceryStoreState> create({
     // String baseUrl = 'https://grocerystore-production-eea3.up.railway.app',
-      String baseUrl = 'https://broderick-rangy-jameson.ngrok-free.dev',
+    String baseUrl = 'https://broderick-rangy-jameson.ngrok-free.dev',
     String? fallbackBaseUrl,
   }) async {
     final client = ApiClient(
@@ -149,15 +150,25 @@ class GroceryStoreState extends ChangeNotifier {
     return result;
   }
 
-  int get cartItemCount =>
-      _cart.fold<int>(0, (sum, item) => sum + item.quantity);
+  int get cartItemCount => cartItemCountFor(cartItems);
 
-  double get cartTotal {
+  double get cartTotal => cartTotalFor(cartItems);
+
+  int cartItemCountFor(Iterable<CartViewItem> items) =>
+      items.fold<int>(0, (sum, item) => sum + item.quantity);
+
+  double cartTotalFor(Iterable<CartViewItem> items) {
     var total = 0.0;
-    for (final item in cartItems) {
+    for (final item in items) {
       total += item.subtotal;
     }
     return total;
+  }
+
+  List<Map<String, dynamic>> checkoutLinesFor(Iterable<CartViewItem> items) {
+    return items
+        .map((item) => {'productId': item.productId, 'quantity': item.quantity})
+        .toList(growable: false);
   }
 
   int get totalStockCount =>
@@ -195,6 +206,19 @@ class GroceryStoreState extends ChangeNotifier {
     }
     _cart.clear();
     notifyListeners();
+  }
+
+  void clearCartItemsByProductIds(Iterable<String> productIds) {
+    final ids = productIds.toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+
+    final before = _cart.length;
+    _cart.removeWhere((item) => ids.contains(item.productId));
+    if (_cart.length != before) {
+      notifyListeners();
+    }
   }
 
   int cartQuantityForProduct(String productId) {
@@ -750,6 +774,7 @@ class GroceryStoreState extends ChangeNotifier {
   }
 
   Future<PlaceOrderResult> placeOrder({
+    required List<CartViewItem> checkoutItems,
     required String shippingAddress,
     required String paymentMethod,
     String? couponCode,
@@ -757,7 +782,7 @@ class GroceryStoreState extends ChangeNotifier {
     double? shippingLongitude,
     String? shippingPlaceLabel,
   }) async {
-    if (_cart.isEmpty) {
+    if (checkoutItems.isEmpty) {
       return const PlaceOrderResult(success: false, message: 'Cart is empty.');
     }
 
@@ -768,9 +793,7 @@ class GroceryStoreState extends ChangeNotifier {
       );
     }
 
-    final lines = _cart
-        .map((item) => {'productId': item.productId, 'quantity': item.quantity})
-        .toList(growable: false);
+    final lines = checkoutLinesFor(checkoutItems);
 
     _setLoading(true);
     try {
@@ -788,7 +811,7 @@ class GroceryStoreState extends ChangeNotifier {
       final createdLines = await _loadOrderLines(createdOrder.id);
       final completedOrder = createdOrder.copyWith(lines: createdLines);
 
-      _cart.clear();
+      clearCartItemsByProductIds(checkoutItems.map((item) => item.productId));
       await refreshAll();
       return PlaceOrderResult(
         success: true,

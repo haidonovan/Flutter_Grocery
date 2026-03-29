@@ -310,6 +310,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
+  double _resolvedPaymentAmount(PayWayPaymentResult payment) {
+    return double.tryParse(payment.amount ?? '') ?? widget.amount;
+  }
+
+  String _resolvedPaymentCurrency(PayWayPaymentResult payment) {
+    final value = payment.currency?.trim();
+    if (value == null || value.isEmpty) {
+      return widget.currency;
+    }
+    return value;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -498,7 +510,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                '\$${widget.amount.toStringAsFixed(2)} ${widget.currency}',
+                '\$${_resolvedPaymentAmount(payment).toStringAsFixed(2)} ${_resolvedPaymentCurrency(payment)}',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,

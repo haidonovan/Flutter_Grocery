@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
-// import crypto from 'crypto';
 import axios from 'axios';
 
 const DEFAULT_QR_API_URL =
   'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/generate-qr';
+
 const DEFAULT_CHECK_API_URL =
   'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/check-transaction-2';
+
 const GENERATE_QR_HASH_ORDER = [
   'req_time',
   'merchant_id',
@@ -27,6 +28,7 @@ const GENERATE_QR_HASH_ORDER = [
   'lifetime',
   'qr_image_template',
 ];
+
 const PURCHASE_HASH_ORDER = [
   'req_time',
   'merchant_id',
@@ -57,19 +59,43 @@ export function getAbaConfig() {
     .replace(/\/$/, '');
 
   return {
-    merchantId: (process.env.ABA_MERCHANT_ID ?? process.env.PAYWAY_MERCHANT_ID ?? '')
-      .trim(),
-    apiKey: (process.env.ABA_API_KEY ?? process.env.PAYWAY_PUBLIC_KEY ?? '').trim(),
-    purchaseUrl: (process.env.ABA_API_URL ?? process.env.PAYWAY_QR_API_URL ?? DEFAULT_QR_API_URL).trim(),
+    merchantId: (
+      process.env.ABA_MERCHANT_ID ??
+      process.env.PAYWAY_MERCHANT_ID ??
+      ''
+    ).trim(),
+
+    apiKey: (
+      process.env.ABA_API_KEY ??
+      process.env.PAYWAY_PUBLIC_KEY ??
+      ''
+    ).trim(),
+
+    purchaseUrl: (
+      process.env.ABA_API_URL ??
+      process.env.PAYWAY_QR_API_URL ??
+      DEFAULT_QR_API_URL
+    ).trim(),
+
     checkUrl: (
       process.env.ABA_CHECK_TRANSACTION_URL ??
       process.env.PAYWAY_CHECK_API_URL ??
       DEFAULT_CHECK_API_URL
     ).trim(),
+
     baseUrl,
-    paymentOption: (process.env.ABA_PAYMENT_OPTION ?? 'abapay_khqr').trim(),
-    qrLifetimeMinutes: normalizeLifetime(process.env.ABA_QR_LIFETIME_MINUTES),
-    qrTemplate: (process.env.ABA_QR_TEMPLATE ?? 'template3_color').trim(),
+
+    // Use ABA Pay mode for USD decimal amounts
+    paymentOption: 'abapay',
+
+    qrLifetimeMinutes: normalizeLifetime(
+      process.env.ABA_QR_LIFETIME_MINUTES,
+    ),
+
+    qrTemplate: (
+      process.env.ABA_QR_TEMPLATE ??
+      'template3_color'
+    ).trim(),
   };
 }
 
@@ -101,28 +127,17 @@ export function getReqTime() {
   );
 }
 
-
 export function createTranId(orderId) {
   const baseOrderId = String(orderId ?? '')
     .replace(/[^A-Za-z0-9]/g, '')
-    .slice(-6) // limit to 6 chars
+    .slice(-6)
     .toUpperCase();
 
-  const timestamp = Date.now().toString().slice(-6); // 6 chars
-  const suffix = crypto.randomBytes(1).toString('hex').toUpperCase(); // 2 chars
+  const timestamp = Date.now().toString().slice(-6);
+  const suffix = crypto.randomBytes(1).toString('hex').toUpperCase();
 
-  return `KH${timestamp}${baseOrderId}${suffix}`; // max = 2+6+6+2 = 16 ✅
+  return `KH${timestamp}${baseOrderId}${suffix}`;
 }
-
-// export function createTranId(orderId) {
-//   const baseOrderId = String(orderId ?? '')
-//     .replace(/[^A-Za-z0-9]/g, '')
-//     .slice(-10)
-//     .toUpperCase();
-//   const timestamp = Date.now().toString().slice(-10);
-//   const suffix = crypto.randomBytes(2).toString('hex').toUpperCase();
-//   return `KH${timestamp}${baseOrderId}${suffix}`.slice(0, 30);
-// }
 
 export function verifyCallbackSignature(payload, receivedSignature, apiKey) {
   if (!receivedSignature) {
@@ -130,9 +145,8 @@ export function verifyCallbackSignature(payload, receivedSignature, apiKey) {
   }
 
   const keys = Object.keys(payload ?? {}).sort();
-  const body = keys
-    .map((key) => serializeForHash(payload[key]))
-    .join('');
+  const body = keys.map((key) => serializeForHash(payload[key])).join('');
+
   const expected = crypto
     .createHmac('sha512', apiKey)
     .update(body)
@@ -140,6 +154,7 @@ export function verifyCallbackSignature(payload, receivedSignature, apiKey) {
 
   const left = Buffer.from(expected, 'utf8');
   const right = Buffer.from(String(receivedSignature), 'utf8');
+
   if (left.length === 0 || left.length !== right.length) {
     return false;
   }
@@ -159,16 +174,22 @@ export async function createQrPayment({
 }) {
   const config = assertAbaConfig();
   const reqTime = getReqTime();
+  const normalizedCurrency = String(currency ?? 'USD').trim().toUpperCase();
+
   const isLegacyPurchaseEndpoint = /\/purchase$/i.test(config.purchaseUrl);
-  const callbackUrl = Buffer.from(`${config.baseUrl}/api/payments/callback`, 'utf8')
-    .toString('base64');
+
+  const callbackUrl = Buffer.from(
+    `${config.baseUrl}/api/payments/callback`,
+    'utf8',
+  ).toString('base64');
+
   const payload = isLegacyPurchaseEndpoint
     ? buildPurchasePayload({
         reqTime,
         merchantId: config.merchantId,
         tranId,
         amount,
-        currency,
+        currency: normalizedCurrency,
         callbackUrl,
         paymentOption: config.paymentOption,
         firstName,
@@ -183,7 +204,7 @@ export async function createQrPayment({
         merchantId: config.merchantId,
         tranId,
         amount,
-        currency,
+        currency: normalizedCurrency,
         callbackUrl,
         paymentOption: config.paymentOption,
         firstName,
@@ -209,6 +230,7 @@ export async function createQrPayment({
 
   const data = response.data ?? {};
   const statusCode = data.status?.code?.toString() ?? '';
+
   if (statusCode !== '0' && statusCode !== '00') {
     throw toAbaError(data, 'ABA rejected the QR payment request.');
   }
@@ -233,6 +255,7 @@ export async function createQrPayment({
 export async function checkTransaction(tranId) {
   const config = assertAbaConfig();
   const reqTime = getReqTime();
+
   const payload = {
     req_time: reqTime,
     merchant_id: config.merchantId,
@@ -259,7 +282,11 @@ export function normalizeGatewayStatus(status) {
 
 export function isPaidGatewayStatus(status) {
   const normalized = normalizeGatewayStatus(status);
-  return normalized === 'APPROVED' || normalized === 'SUCCESS' || normalized === 'PAID';
+  return (
+    normalized === 'APPROVED' ||
+    normalized === 'SUCCESS' ||
+    normalized === 'PAID'
+  );
 }
 
 export function isFailureGatewayStatus(status) {
@@ -282,6 +309,7 @@ export function toAbaError(errorOrBody, fallbackMessage) {
       errorOrBody.response?.data?.message ??
       errorOrBody.message ??
       fallbackMessage;
+
     const statusCode = errorOrBody.response?.status ?? 502;
     const status = errorOrBody.response?.data?.status;
 
@@ -294,6 +322,7 @@ export function toAbaError(errorOrBody, fallbackMessage) {
   }
 
   const status = errorOrBody?.status;
+
   return {
     statusCode: 422,
     code: status?.code?.toString() ?? null,
@@ -306,12 +335,18 @@ export function toAbaError(errorOrBody, fallbackMessage) {
 }
 
 function createQrHash(payload, apiKey) {
-  const body = GENERATE_QR_HASH_ORDER.map((key) => serializeForHash(payload[key])).join('');
+  const body = GENERATE_QR_HASH_ORDER
+    .map((key) => serializeForHash(payload[key]))
+    .join('');
+
   return crypto.createHmac('sha512', apiKey).update(body).digest('base64');
 }
 
 function createPurchaseHash(payload, apiKey) {
-  const body = PURCHASE_HASH_ORDER.map((key) => serializeForHash(payload[key])).join('');
+  const body = PURCHASE_HASH_ORDER
+    .map((key) => serializeForHash(payload[key]))
+    .join('');
+
   return crypto.createHmac('sha512', apiKey).update(body).digest('base64');
 }
 
@@ -329,9 +364,11 @@ function serializeForHash(value) {
 
 function normalizeLifetime(value) {
   const parsed = Number.parseInt(String(value ?? '3'), 10);
+
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return 3;
   }
+
   return parsed;
 }
 
@@ -367,7 +404,7 @@ function buildGenerateQrPayload({
     amount: Number(amount).toFixed(2),
     purchase_type: 'purchase',
     payment_option: paymentOption,
-    currency,
+    currency: String(currency ?? 'USD').trim().toUpperCase(),
     callback_url: callbackUrl,
     lifetime: qrLifetimeMinutes,
     qr_image_template: qrTemplate,
@@ -376,18 +413,26 @@ function buildGenerateQrPayload({
   if (firstName) {
     payload.first_name = String(firstName).trim();
   }
+
   if (lastName) {
     payload.last_name = String(lastName).trim();
   }
+
   if (email) {
     payload.email = String(email).trim();
   }
+
   if (phone) {
     payload.phone = String(phone).trim();
   }
+
   if (returnParams) {
     payload.return_params = String(returnParams).trim();
   }
+
+  console.log('💳 PAYMENT OPTION:', payload.payment_option);
+  console.log('💰 AMOUNT SENT:', payload.amount);
+  console.log('💱 CURRENCY:', payload.currency);
 
   payload.hash = createQrHash(payload, apiKey);
   return payload;
@@ -415,22 +460,26 @@ function buildPurchasePayload({
     amount: Number(amount).toFixed(2),
     type: 'purchase',
     payment_option: normalizeLegacyPurchaseOption(paymentOption),
-    currency,
+    currency: String(currency ?? 'USD').trim().toUpperCase(),
     return_url: callbackUrl,
   };
 
   if (firstName) {
     payload.firstname = String(firstName).trim();
   }
+
   if (lastName) {
     payload.lastname = String(lastName).trim();
   }
+
   if (email) {
     payload.email = String(email).trim();
   }
+
   if (phone) {
     payload.phone = String(phone).trim();
   }
+
   if (returnParams) {
     payload.return_params = String(returnParams).trim();
   }
@@ -441,19 +490,24 @@ function buildPurchasePayload({
 
 function normalizeLegacyPurchaseOption(value) {
   const normalized = String(value ?? '').trim().toLowerCase();
+
   if (!normalized || normalized === 'abapay_khqr') {
     return 'abapay';
   }
+
   return normalized;
 }
 
 function toFormData(payload) {
   const form = new FormData();
+
   for (const [key, value] of Object.entries(payload)) {
     if (value === undefined || value === null || value === '') {
       continue;
     }
+
     form.append(key, String(value));
   }
+
   return form;
 }

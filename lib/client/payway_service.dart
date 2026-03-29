@@ -144,7 +144,6 @@ class PayWayService {
             headers: _headers(baseUrl, authToken),
             body: jsonEncode({
               'orderId': orderId,
-              'amount': amount.toStringAsFixed(2),
               'currency': currency,
               'shippingAddress': shippingAddress,
               'lines': lines,
