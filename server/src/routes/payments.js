@@ -87,8 +87,10 @@ router.post('/create', requireAuth, async (req, res) => {
       resolvedAmount = draft.total;
       ensureAmountMatches(amount, resolvedAmount);
 
+      let tranId = createTranId(draft.orderId);
+
       const qrPayment = await createQrPayment({
-        tranId: createTranId(draft.orderId),
+        tranId: tranId,
         amount: draft.total,
         currency: normalizedCurrency,
         firstName,
@@ -122,8 +124,14 @@ router.post('/create', requireAuth, async (req, res) => {
       });
     }
 
+    let tranId = order.tranId;
+
+    if (!tranId) {
+      tranId = createTranId(order.id);
+    }
+
     const qrPayment = await createQrPayment({
-      tranId: createTranId(resolvedOrderId),
+      tranId: tranId,
       amount: resolvedAmount,
       currency: order.paymentCurrency ?? normalizedCurrency,
       firstName,

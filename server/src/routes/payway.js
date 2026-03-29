@@ -72,21 +72,38 @@ function createCallbackUrl(overrideUrl) {
   if (!candidate) {
     return '';
   }
-  if (candidate.endsWith('/api/payway/pushback')) {
+  if (candidate.endsWith('/api/payment/callback')) {
     return candidate;
   }
-  return `${candidate}/api/payway/pushback`;
+  return `${candidate}/api/payment/callback`;
 }
 
-function serializeForHash(value) {
-  if (value === undefined || value === null || value === '') {
-    return '';
+  function serializeForHash(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    // 🔥 IMPORTANT: keep empty string as empty slot
+    if (value === '') {
+      return '';
+    }
+
+    if (Array.isArray(value) || typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+
+    return String(value);
   }
-  if (Array.isArray(value) || typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
+
+// function serializeForHash(value) {
+//   if (value === undefined || value === null || value === '') {
+//     return '';
+//   }
+//   if (Array.isArray(value) || typeof value === 'object') {
+//     return JSON.stringify(value);
+//   }
+//   return String(value);
+// }
 
 function buildHashString(payload, orderedKeys) {
   return orderedKeys.map((key) => serializeForHash(payload[key])).join('');
@@ -249,13 +266,42 @@ router.post('/create-payment', async (req, res) => {
       merchant_id: PAYWAY_CONFIG.merchantId,
       tran_id: tranId,
       amount: amountString,
+
+      // 🔥 REQUIRED EMPTY FIELDS
+      items: "",
+      first_name: firstname || "",
+      last_name: lastname || "",
+      email: email || "",
+      phone: phone || "",
+
       purchase_type: 'purchase',
       payment_option: mapQrPaymentOption(paymentOption),
+
+      callback_url: resolvedCallbackUrl
+        ? Buffer.from(resolvedCallbackUrl).toString('base64')
+        : "",
+
+      return_deeplink: "",   // 🔥 ADD THIS
       currency,
+      custom_fields: "",     // 🔥 ADD THIS
       return_params: String(orderId),
+      payout: "",            // 🔥 ADD THIS
       lifetime: 3,
       qr_image_template: 'template3_color',
     };
+
+    // const payload = {
+    //   req_time: reqTime,
+    //   merchant_id: PAYWAY_CONFIG.merchantId,
+    //   tran_id: tranId,
+    //   amount: amountString,
+    //   purchase_type: 'purchase',
+    //   payment_option: mapQrPaymentOption(paymentOption),
+    //   currency,
+    //   return_params: String(orderId),
+    //   lifetime: 3,
+    //   qr_image_template: 'template3_color',
+    // };
 
     if (firstname) {
       payload.first_name = firstname;
@@ -273,10 +319,21 @@ router.post('/create-payment', async (req, res) => {
       payload.callback_url = Buffer.from(resolvedCallbackUrl, 'utf8').toString('base64');
     }
 
-    const hash = generateHash(
-      buildHashString(payload, QR_HASH_ORDER),
-      PAYWAY_CONFIG.publicKey,
-    );
+    const hashString = buildHashString(payload, QR_HASH_ORDER);
+
+    console.log("====== ABA DEBUG ======");
+    console.log("Payload:", payload);
+    console.log("HASH STRING:", hashString);
+
+    const hash = generateHash(hashString, PAYWAY_CONFIG.publicKey);
+
+    console.log("HASH (base64):", hash);
+    console.log("=======================");
+
+    // const hash = generateHash(
+    //   buildHashString(payload, QR_HASH_ORDER),
+    //   PAYWAY_CONFIG.publicKey,
+    // );
 
     const { body: paywayResponse, httpStatus } = await postJson(
       PAYWAY_CONFIG.qrApiUrl,
@@ -380,7 +437,7 @@ router.post('/check-transaction', async (req, res) => {
   }
 });
 
-router.post('/pushback', async (req, res) => {
+router.post('/api/payment/callback', async (req, res) => {
   try {
     const payload = req.body ?? {};
     const signature = req.get('x-payway-hmac-sha512') ?? '';
