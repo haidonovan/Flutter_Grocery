@@ -10,6 +10,11 @@ copy .env.example .env
 
 Set `DATABASE_URL`, `JWT_SECRET`, and the ABA PayWay variables in `server/.env`.
 
+Railway note:
+
+- Railway does not use your local `server/.env` file from GitHub. Add the same variables in the Railway service settings.
+- If `BASE_URL` is not set, the payment route now falls back to the request's public host, but setting `BASE_URL` explicitly is still recommended.
+
 ## ABA PayWay KHQR
 
 Required variables:
