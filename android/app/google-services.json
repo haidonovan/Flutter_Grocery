@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "910032606766",
+    "project_id": "flutter-grocery-76cd2",
+    "storage_bucket": "flutter-grocery-76cd2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:910032606766:android:ad65cf8b83a6464bbc31bf",
+        "android_client_info": {
+          "package_name": "com.example.flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJuz_IaMj5l3ljP7mQkPrq1JumR1i5ueQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
